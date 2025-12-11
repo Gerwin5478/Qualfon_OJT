@@ -176,7 +176,10 @@ export const wikiContent: WikiPageData[] = [
       {
         title: 'Work From Home (WFH)',
         content: 'Assets deployed for WFH are monitored by the Asset Custodian. Employees must abide by the Accountability Agreement. Returns must be supported by a "Fixed Asset Return Slip".',
-        type: 'warning'
+        type: 'warning',
+
+          downloadLink:'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/Forms/AllItems.aspx?id=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines%2FNOT%2DOFFICIAL%2DFixed%2DAsset%2DReturn%2DSlip%2Epdf&parent=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines',
+          downloadLabel: 'NOT OFFICIAL Fixed Asset Return Slip File'
       }
     ]
   },
