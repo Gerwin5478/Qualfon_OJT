@@ -1,19 +1,20 @@
+import { LucideIcon } from 'lucide-react';
+
+export type SectionType = 'text' | 'list' | 'info' | 'warning';
+
 export interface SubSection {
   title: string;
-  content: string | string[]; // Can be a paragraph or a list of items
-  type?: 'text' | 'list' | 'warning' | 'info';
-  image?:string;
+  content: string | string[];
+  type: SectionType;
+  images?: string[]; // optional array for multiple images
+  downloadLink?: string;
+  downloadLabel?: string;
 }
 
 export interface WikiPageData {
   id: string;
   title: string;
-  icon: any; // Using Lucide icons
+  icon: LucideIcon;
   summary: string;
   sections: SubSection[];
-}
-
-export enum DocType {
-  POLICY = 'FD-06',
-  FORM = 'ANNEX',
 }

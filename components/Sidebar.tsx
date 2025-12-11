@@ -56,6 +56,8 @@ const Sidebar: React.FC = () => {
         })}
       </nav>
 
+        
+
       <div className="p-4 border-t border-slate-800">
         <div className="bg-slate-800 rounded-lg p-3">
           <p className="text-xs text-slate-400 mb-1">Need Help?</p>

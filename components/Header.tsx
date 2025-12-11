@@ -3,17 +3,14 @@ import { Download, Search, Bell } from 'lucide-react';
 
 const Header: React.FC = () => {
   const handleDownload = () => {
-    // In a real app, this would be a link to the actual PDF blob or URL
-    // Since we don't have the file hosting, we simulate the action.
-    alert("Downloading 'FD-06 Fixed Asset Policy.pdf'...");
-    
-    // Simulating a download for the user to see the interaction
     const link = document.createElement('a');
-    link.href = '#'; // Placeholder
+    link.href = 'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/SitePages/KPI-Creation-Process-&-Guidelines/FD-06-Fixed-Asset-Policy-v4_e-signed.pdf';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
     link.download = 'FD-06_Fixed_Asset_Policy.pdf';
-    // document.body.appendChild(link);
-    // link.click();
-    // document.body.removeChild(link);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -30,14 +27,11 @@ const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-4">
-        <button 
-            className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors relative"
-            title="Notifications"
-        >
-            <Bell size={20} />
-            <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+        <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors relative" title="Notifications">
+          <Bell size={20} />
+          <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
         </button>
-        
+
         <div className="h-8 w-px bg-slate-200 mx-2"></div>
 
         <button

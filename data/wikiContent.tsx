@@ -5,7 +5,8 @@ import {
   Truck, 
   Trash2, 
   ShieldCheck, 
-  ClipboardCheck 
+  ClipboardCheck,
+  Wrench
 } from 'lucide-react';
 
 export const wikiContent: WikiPageData[] = [
@@ -117,7 +118,10 @@ export const wikiContent: WikiPageData[] = [
           'Ensure the asset tag number and serial number match the details recorded in the Fixed Asset file.'
         ],
         type: 'list',
-        image: 'https://github.com/Gerwin5478/OJT_Qualfon/blob/main/TAG.png?raw=true'
+        images: [
+                'https://github.com/Gerwin5478/Qualfon_OJT/blob/main/OJT%20FILES/TAG.png?raw=true',
+                'https://github.com/Gerwin5478/Qualfon_OJT/blob/main/OJT%20FILES/awsd.png?raw=true'
+  ]
       },
       {
         title: 'Step 6: Final Documentation',
@@ -125,8 +129,12 @@ export const wikiContent: WikiPageData[] = [
           'After properly recording the details, create a Receiving Report (RR).',
           'Once all steps are completed, the asset is ready for deployment or storage.'
         ],
-        type: 'list'
-      }
+        type: 'list',
+        images:['https://github.com/Gerwin5478/Qualfon_OJT/blob/main/OJT%20FILES/dwaf.webp?raw=true'
+        ],
+        downloadLink: 'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7B88E365E0-213A-4F8F-8278-82D263DE1685%7D&file=Receiving-Report--2-.xlsx&action=default&mobileredirect=true',
+        downloadLabel: 'Download Receiving Report (RR) File'
+      },
     ]
   },
   {
@@ -138,21 +146,33 @@ export const wikiContent: WikiPageData[] = [
       {
         title: 'Issuance to Users',
         content: [
-          'Must be supported by "Fixed Asset Delivery Acceptance Receipt" and "Accountability Agreement".',
+          'The department or employee requesting an asset must submit a proper request, which is processed per internal procedures.',
+          'Asset must be properly tagged',
+          'Must be supported by "Acknowledgement Receipt " and "Accountability Agreement".',
           'Documents must be signed by the user upon receipt.',
-          'Both User and Facilities Department retain copies.'
+          'The documents are to be properly signed by the recipient to confirm receipt',
+          'Both User and Facilities Department retain copies.',
         ],
-        type: 'list'
+        type: 'list',
+        downloadLink:'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/Forms/AllItems.aspx?id=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines%2FFO%2DFA001%2DFixed%2DAsset%2DIssuance%2DAccountability%2DAgreement%5FYUBIKEYS%2D1%2D%2D4%2D%2Epdf&parent=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines',
+        downloadLabel:'Download Accountability Agreement and Acknowledgement Receipt File'
       },
       {
-        title: 'Transferring Assets',
-        content: [
-          'Internal Transfer (Floor to Floor): Use "Property/Equipment Transfer Form".',
-          'External Transfer (Outside Building): Use "Gate Pass".',
-          'Forms require 4 copies: Bearer, Facilities, Finance, and Security.'
-        ],
-        type: 'list'
-      },
+          title: 'Transferring Assets',
+          content: [
+            'Requestor fills out Property/Equipment Transfer Form (Annex E).',
+            'Obtain approvals and create 4 copies:\n', 
+            '---• Original: Facilities (Property & Inventory)\n',
+            '---• Duplicate: Requester\n', 
+            '---• Triplicate: Accounting (Finance)\n', 
+            "---• Quadruplicate: Guard's Copy",
+            'Inventory personnel updates the FIXED ASSET FILE by adding a new entry to reflect the asset’s new location and status (DO NOT DELETE THE PREVIOUS RECORD)'
+          ],
+          type: 'list',
+          downloadLink:
+            'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7BD60D3D15-73A2-442D-A054-39FDF2C5D8FB%7D&file=Equipment-Transfer-Form.xls&action=default&mobileredirect=true',
+             downloadLabel: 'Download Equipment Transfer Form File'
+        },
       {
         title: 'Work From Home (WFH)',
         content: 'Assets deployed for WFH are monitored by the Asset Custodian. Employees must abide by the Accountability Agreement. Returns must be supported by a "Fixed Asset Return Slip".',
@@ -220,5 +240,65 @@ export const wikiContent: WikiPageData[] = [
         type: 'text'
       }
     ]
+  },
+  {
+    id: 'repair',
+    title: 'Asset Repair',
+    icon: Wrench,
+    summary: 'How assets are evaluated if they are repairable or not',
+    sections:[
+      {
+        title: 'Furniture & Fixtures / Machinery and Equipment',
+        content: [
+        'If the asset is damaged, quickly inform the security department and request assistance to check CCTV footage.',
+        'Notify the OPS manager about the damaged asset.',
+        'Request an incident report.'
+        ],
+        type: 'list',
+        downloadLink: 'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/Forms/AllItems.aspx?id=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines%2FINCIDENT%2DREPORT%2DFORM%2DSAMPLE%2DBY%2DOJT%2DNOT%2DOFFICIAL%2Epdf&parent=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines',
+        downloadLabel: 'NOT OFFICIAL Incident Report File'
+      },
+      {
+        title: 'IT Equipment',
+        content: [
+          'If the IT equipment is repairable, the IT technician will carry out the repairs and the process is done',
+          'If not, the inventory personnel gather hard copy documents',
+          'Delivery Receipt or Invoice and Incident Report from IT Department',
+          'Scan and email it to procurement for assistance and ask if the asset is still under warranty',
+          'if the asset is under warranty, the damaged asset will be replaced with a new one'
+        ],
+        type: 'list',
+        downloadLink: 'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/Forms/AllItems.aspx?id=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines%2FINCIDENT%2DREPORT%2DFORM%2DSAMPLE%2DBY%2DOJT%2DNOT%2DOFFICIAL%2Epdf&parent=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines',
+        downloadLabel: 'NOT OFFICIAL Incident Report File'
+       
+        },
+      {
+          title: 'IT Equipment - Damaged or Lost by Employee',
+          content: [
+            'Employee must immediately report the damage/loss to their supervisor and Facilities Department and file an Incident Report.',
+            'Facilities Department investigates the incident whether it is (Intentional act, Negligence, Accident )',
+            'As per Fixed Asset Issuance Accountability Agreement the employee must pay for the damages',
+            'Employee has 2 payment option (Outright cash payment, Salary deduction on agreed terms)',
+            'Forward Incident Report and other supporting documents to Person Office'
+
+          ] ,
+          type: 'list',
+          downloadLink: 'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7BD6CB9514-E59E-459F-8CF0-F0B0F5FE5568%7D&file=Asset-Assessment-Report.xlsx&action=default&mobileredirect=true',
+          downloadLabel: 'Asset Assessment Report File',
+          
+      },
+      {
+          title: 'Work From Home (WFH) Damaged Assets',
+          content: [
+            'Facilities Department submits Incident Report to Person Office',
+            'Same deduction calculation applies',
+            'Employee must comply with WFH Policies and Accountability Agreement',
+          ],
+          type: 'list',
+
+          downloadLink: 'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/Forms/AllItems.aspx?id=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines%2FINCIDENT%2DREPORT%2DFORM%2DSAMPLE%2DBY%2DOJT%2DNOT%2DOFFICIAL%2Epdf&parent=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines',
+          downloadLabel: 'NOT OFFICIAL Incident Report File'
+}
+
+    ]
   }
-];
