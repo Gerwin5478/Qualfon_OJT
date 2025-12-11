@@ -1,0 +1,104 @@
+import React from 'react';
+import { useParams, Navigate } from 'react-router-dom';
+import { wikiContent } from '../data/wikiContent';
+import { Info, AlertCircle, ChevronRight } from 'lucide-react';
+
+const WikiPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const page = wikiContent.find((p) => p.id === id);
+
+  if (!page) {
+    return <Navigate to="/" replace />;
+  }
+
+  const PageIcon = page.icon;
+
+  return (
+    <div className="max-w-5xl mx-auto animate-fadeIn">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">
+        <span>Home</span>
+        <ChevronRight size={14} />
+        <span>Policy</span>
+        <ChevronRight size={14} />
+        <span className="font-medium text-slate-800">{page.title}</span>
+      </div>
+
+      {/* Page Header */}
+      <div className="mb-8 border-b border-slate-200 pb-8">
+        <div className="flex items-center gap-4 mb-4">
+            <div className="bg-blue-100 text-blue-700 p-3 rounded-xl">
+                 <PageIcon size={32} />
+            </div>
+            <h1 className="text-3xl font-bold text-slate-900">{page.title}</h1>
+        </div>
+        <p className="text-lg text-slate-600 max-w-3xl leading-relaxed">
+          {page.summary}
+        </p>
+      </div>
+
+      {/* Page Content */}
+      <div className="space-y-8">
+        {page.sections.map((section, index) => (
+          <div key={index} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
+               <h2 className="text-lg font-bold text-slate-800">{section.title}</h2>
+            </div>
+            
+            <div className="p-6">
+              {section.image && (
+                <div className="mb-6 rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+                  <img 
+                    src={section.image} 
+                    alt={section.title}
+                    className="w-full h-auto object-cover max-h-[400px]"
+                    loading="lazy"
+                  />
+                </div>
+              )}
+
+              {section.type === 'list' && Array.isArray(section.content) ? (
+                <ul className="space-y-3">
+                  {section.content.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-3 text-slate-700">
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2.5 flex-shrink-0"></span>
+                      <span className="leading-relaxed">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : section.type === 'info' ? (
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex gap-4">
+                  <Info className="text-blue-600 flex-shrink-0" size={24} />
+                  <div className="text-blue-900 text-sm leading-relaxed">
+                     {Array.isArray(section.content) ? (
+                        <ul className="list-disc pl-4 space-y-1">
+                             {section.content.map((c, i) => <li key={i}>{c}</li>)}
+                        </ul>
+                     ) : section.content}
+                  </div>
+                </div>
+              ) : section.type === 'warning' ? (
+                 <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 flex gap-4">
+                  <AlertCircle className="text-amber-600 flex-shrink-0" size={24} />
+                  <div className="text-amber-900 text-sm leading-relaxed font-medium">
+                     {section.content}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  {section.content}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="mt-12 mb-8 p-6 bg-slate-100 rounded-xl text-center">
+          <p className="text-slate-500 text-sm">Always refer to the original FD-06 PDF document for official audits.</p>
+      </div>
+    </div>
+  );
+};
+
+export default WikiPage;
