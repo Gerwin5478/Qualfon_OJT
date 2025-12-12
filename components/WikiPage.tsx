@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { wikiContent } from '../data/wikiContent';
-import { Info, AlertCircle, ChevronRight } from 'lucide-react';
+import { Info, AlertCircle, ChevronRight, Download } from 'lucide-react';
 
 const WikiPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,7 +48,7 @@ const WikiPage: React.FC = () => {
                   {section.content.map((item, idx) => (
                     <li key={idx} className="flex items-start gap-3 text-slate-700">
                       <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2.5 flex-shrink-0"></span>
-                      <span className="leading-relaxed">{item}</span>
+                      <span className="leading-relaxed">{typeof item === 'string' ? item : item.label}</span>
                     </li>
                   ))}
                 </ul>
@@ -57,19 +57,55 @@ const WikiPage: React.FC = () => {
                   <Info className="text-blue-600 flex-shrink-0" size={24} />
                   <div className="text-blue-900 text-sm leading-relaxed">
                     {Array.isArray(section.content) ? (
-                      <ul className="list-disc pl-4 space-y-1">{section.content.map((c, i) => <li key={i}>{c}</li>)}</ul>
+                      <ul className="list-disc pl-4 space-y-1">{section.content.map((c, i) => <li key={i}>{typeof c === 'string' ? c : c.label}</li>)}</ul>
                     ) : section.content}
                   </div>
                 </div>
               ) : section.type === 'warning' ? (
                 <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 flex gap-4">
                   <AlertCircle className="text-amber-600 flex-shrink-0" size={24} />
-                  <div className="text-amber-900 text-sm leading-relaxed font-medium">{section.content}</div>
+                  <div className="text-amber-900 text-sm leading-relaxed font-medium">
+                     {typeof section.content === 'string' ? section.content : 
+                      Array.isArray(section.content) ? section.content.map(c => typeof c === 'string' ? c : c.label).join(' ') : ''}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{section.content}</p>
-              )}
+              ) : section.type === 'table' && Array.isArray(section.content) ? (
+                 <table className="w-full table-auto border-collapse border border-slate-200 mt-4">
+                  <tbody>
+                    {section.content.map((row, idx) => {
+                      const label = typeof row === 'string' ? row : row.label;
+                      const link = typeof row === 'string' ? null : row.link;
 
+                      return (
+                        <tr key={idx} className="border border-slate-200">
+                          <td className="border border-slate-200 px-4 py-2">{label}</td>
+                          {link && (
+                            <td className="border border-slate-200 px-4 py-2 text-right">
+                              <button
+                                onClick={() => {
+                                  const a = document.createElement('a');
+                                  a.href = link;
+                                  a.download = label; // optional: filename
+                                  a.click();
+                                }}
+                                className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-all shadow-md hover:shadow-lg active:scale-95"
+                              >
+                                Download
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {typeof section.content === 'string' ? section.content : 
+                     Array.isArray(section.content) ? section.content.map(c => typeof c === 'string' ? c : c.label).join('\n') : ''}
+                </p>
+              )}
+              
               {/* Images */}
               {section.images && section.images.length > 0 && (
                 <div className="mt-6 space-y-4">
@@ -85,8 +121,12 @@ const WikiPage: React.FC = () => {
                   ))}
                 </div>
               )}
-              {section.downloadLink && (
-                  <div className="mt-4">
+              
+              {/* Download Buttons Container */}
+              {(section.downloadLink || (section.additionalDownloads && section.additionalDownloads.length > 0)) && (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {/* Legacy Single Download Link */}
+                  {section.downloadLink && (
                     <a
                       href={section.downloadLink}
                       target="_blank"
@@ -94,10 +134,27 @@ const WikiPage: React.FC = () => {
                       className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg active:scale-95"
                       download
                     >
+                      <Download size={16} />
                       {section.downloadLabel || 'Download File'}  
                     </a>
-                  </div>
-                )}
+                  )}
+
+                  {/* Additional Download Buttons */}
+                  {section.additionalDownloads?.map((btn, i) => (
+                    <a
+                      key={i}
+                      href={btn.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg active:scale-95"
+                      download
+                    >
+                      <Download size={16} />
+                      {btn.label}
+                    </a>
+                  ))}
+                </div>
+              )}
 
             </div>
           </div>

@@ -6,7 +6,11 @@ import {
   Trash2, 
   ShieldCheck, 
   ClipboardCheck,
-  Wrench
+  Wrench,
+  Circle,
+  Home,
+  Settings
+
 } from 'lucide-react';
 
 export const wikiContent: WikiPageData[] = [
@@ -14,6 +18,7 @@ export const wikiContent: WikiPageData[] = [
     id: 'introduction',
     title: 'Purpose & Scope',
     icon: BookOpen,
+    category: 'Fixed Asset Procedures',
     summary: 'General guidelines for Fixed Asset Accounting and Management based on Policy FD-06.',
     sections: [
       {
@@ -45,6 +50,7 @@ export const wikiContent: WikiPageData[] = [
     id: 'responsibilities',
     title: 'Responsibilities',
     icon: ShieldCheck,
+    category: 'Fixed Asset Procedures',
     summary: 'Roles of Facilities, Finance, and Department Requestors.',
     sections: [
       {
@@ -74,6 +80,7 @@ export const wikiContent: WikiPageData[] = [
     id: 'tagging',
     title: 'Receiving, Tagging & Storage',
     icon: Tag,
+    category: 'Fixed Asset Procedures',
     summary: 'Step-by-step Standard Operating Procedures for receiving, inspecting, tagging, and storing assets.',
     sections: [
       {
@@ -119,8 +126,8 @@ export const wikiContent: WikiPageData[] = [
         ],
         type: 'list',
         images: [
-                'https://github.com/Gerwin5478/Qualfon_OJT/blob/main/OJT%20FILES/TAG.png?raw=true',
-                'https://github.com/Gerwin5478/Qualfon_OJT/blob/main/OJT%20FILES/awsd.png?raw=true'
+                'https://github.com/Gerwin5478/OJT-FILES/blob/main/adw.jpg?raw=true',
+                'https://github.com/Gerwin5478/OJT-FILES/blob/main/content.png?raw=true',
   ]
       },
       {
@@ -130,7 +137,7 @@ export const wikiContent: WikiPageData[] = [
           'Once all steps are completed, the asset is ready for deployment or storage.'
         ],
         type: 'list',
-        images:['https://github.com/Gerwin5478/Qualfon_OJT/blob/main/OJT%20FILES/dwaf.webp?raw=true'
+        images:['https://github.com/Gerwin5478/OJT-FILES/blob/main/content.webp?raw=true'
         ],
         downloadLink: 'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7B88E365E0-213A-4F8F-8278-82D263DE1685%7D&file=Receiving-Report--2-.xlsx&action=default&mobileredirect=true',
         downloadLabel: 'Download Receiving Report (RR) File'
@@ -141,6 +148,7 @@ export const wikiContent: WikiPageData[] = [
     id: 'issuance',
     title: 'Issuance & Transfer',
     icon: Truck,
+    category: 'Fixed Asset Procedures',
     summary: 'Moving assets between users, departments, or locations.',
     sections: [
       {
@@ -187,6 +195,7 @@ export const wikiContent: WikiPageData[] = [
     id: 'monitoring',
     title: 'Monitoring & Counts',
     icon: ClipboardCheck,
+    category: 'Fixed Asset Procedures',
     summary: 'Annual physical counts and maintenance of asset schedules.',
     sections: [
       {
@@ -201,7 +210,7 @@ export const wikiContent: WikiPageData[] = [
       },
       {
         title: 'Physical Count',
-        content: [
+        content:[
           'Conducted at least annually.',
           'Methods: "List-to-Floor" (verify existence) and "Floor-to-List" (verify completeness).',
           '100% physical count required within a 5-year cycle.',
@@ -213,8 +222,9 @@ export const wikiContent: WikiPageData[] = [
   },
   {
     id: 'disposal',
-    title: 'Disposal',
+    title: 'Asset Disposal',
     icon: Trash2,
+    category: 'Fixed Asset Procedures',
     summary: 'Procedures for retiring, selling, or donating assets.',
     sections: [
       {
@@ -223,31 +233,80 @@ export const wikiContent: WikiPageData[] = [
         type: 'warning'
       },
       {
-        title: 'Documentation Required',
-        content: [
-          'Asset Disposal Form (Annex H)',
-          'IT Equipment Assessment Report (ITEAR) for IT assets.',
-          'Asset Assessment Report (AAR) for non-IT assets.',
-          'Cost-Benefit Analysis Report (CBAR) for scrap sales.'
+          title: 'Asset Disposal Form',
+          content: 'Official document used to request and approve the disposal of assets. Must be signed by the relevant approvers.',
+          type: 'text',
+          downloadLink: 'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7BB1F4292B-828B-4AA0-9966-1C9793FE69AE%7D&file=FD09_Asset-Disposal-Form-V2_022023--1-.xlsx&action=default&mobileredirect=true',
+          downloadLabel: 'Asset Disposal Form'         
+      },
+      {
+          title: 'Asset Disposition Delegation of Authority',
+          content: 'Document outlining who has the authority to approve the disposal, based on asset value/type.',
+          type: 'text',
+          images:[
+              'https://github.com/Gerwin5478/OJT-FILES/blob/main/Screenshot%202025-12-12%20013526.png?raw=true'
+
+          ],
+      },
+
+      {
+        title: '(FOR IT Equipment) Assessment Report',
+        content: "Required for IT equipment disposal, detailing the IT Department's assessment of the asset's condition and validity of disposal.",
+        type: 'text',
+        downloadLink:'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7BFD3EBCFA-06CF-4E45-BEB8-903F820604A4%7D&file=IT-Equipment-Assessment-Report..xlsx&action=default&mobileredirect=true',
+        downloadLabel:'IT Equipment Assessment Report File'
+      },
+      {
+        title: 'IT Equipment Disposal Thru Scrap Sales',
+        content: ['Initiation/Identification of Asset for Disposal using Asset Disposal Form',
+        'Assessment of IT Equipment using IT Equipment Assessment Report',
+        'Bidding Process (Assisted by Procurement)',
+        'Evaluation and Selection of Buyer',
+        'Approval - Asset Disposal Form (reflecting the final bidder, approved by management/CoFO) ',
+        'Actual Disposal - Documentation of actual disposal witnessed by Facilities, Finance, and security' 
         ],
         type: 'list'
       },
       {
-        title: 'Bidding Policy',
-        content: 'Sale of scraps requires at least 3 qualified bidders. Assisted by Procurement Department. The final buyer is chosen based on CBAR results.',
-        type: 'text'
+        title: '(FOR NON IT EQUIPMENT) Asset Assessment Report',
+        content: "Required for Non-IT related asset disposal, detailing the Facilities Department's assessment of the asset's condition and validity of disposal.",
+        type: 'text',
+        downloadLink:'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc2.aspx?action=edit&sourcedoc=%7Bd6cb9514-e59e-459f-8cf0-f0b0f5fe5568%7D&wdOrigin=TEAMS-WEB.undefined_ns.rwc&wdExp=TEAMS-TREATMENT&wdhostclicktime=1765522860236&web=1',
+        downloadLabel:'Asset Assessment Report File()'
+        },
+      {
+        title: 'NON IT Equipment Disposal Thru Scrap Sales',
+        content: ['Initiation/Identification of Asset for Disposal using Asset Disposal Form   ', 
+        'Assessment of Non-IT Equipment using Asset Assessment Report ',
+        'Bidding Process (Assisted by Procurement)',
+        'Evaluation and Selection of Buyer',
+        'Approval - Asset Disposal Form (reflecting the final bidder, approved by management/CoFO)',
+        'Actual Disposal -Documentation of actual disposal witnessed by Facilities, Finance, and security',
+        ],
+        type: 'list'
       },
       {
-        title: 'Hopeless Cases (Unreturned Assets)',
-        content: 'If an employee separates and fails to return assets after 3 attempts, it is declared a "Hopeless Case". Finance derecognizes the asset and deductions may apply.',
-        type: 'text'
-      }
+        title: 'Prerequisites',
+        content: ['The donation must not reduce the Company’s production capacity or workforce, unless the reduction has been pre-approved, and the assets are considered excess or idle',
+        ],
+        type: 'warning'
+      },
+
+      {
+        title: 'Asset Disposal thru Donation',
+        content: ['Identification and Assessment using IT Asset Assessment Report or Asset Assessment Report',
+        'Approval - Asset Disposal Form, signed by authorized approvers',
+        'Confirmation of Donation- Deed of Donation or similar document transferring ownership',
+        ],
+        type: 'list'
+      },
     ]
   },
   {
     id: 'repair',
     title: 'Asset Repair',
     icon: Wrench,
+    category: 'Fixed Asset Procedures',
     summary: 'How assets are evaluated if they are repairable or not',
     sections:[
       {
@@ -304,4 +363,61 @@ export const wikiContent: WikiPageData[] = [
 }
 
     ]
+  },
+  {
+    id: 'eee-page',
+    title: 'Housekeeping',
+    icon: Home,
+    category: 'HOUSEKEEPING AND MAINTENANCE',
+    summary: 'This page provides an overview of the company’s cleanliness and proceedures',
+    sections: [
+      {
+        title: 'Daily Monitoring Activities HouseKeeping ',
+        content:[ 'Cleaning and Dusting of Workstation',
+        'Disinfection of Computer Equipment',
+        'Cleaning and Disinfection of Restroom',
+        'Cleaning and Disinfection of Common Area',
+        'Garbage Collection and Disposal',
+        'Clearing Garbage Bins',
+        'Cleaning / Vacumming of Operation Area',
+        'Cleaning / Vacumming of Offices',
+        'Water Dispenser Cleaning'
+        ],
+        type: 'list',
+
+        downloadLink:'https://qualfon-my.sharepoint.com/:p:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7BC444688B-E4FC-452C-BAEB-F4E9C4A46108%7D&file=sample-daily.pptx&action=edit&mobileredirect=true',
+        downloadLabel:'Download Examples',
+        additionalDownloads: [
+           {
+             label: 'Download Checklist',
+             link: '#' 
+           }
+        ]
+      }
+      
+    ]
+  },
+  {
+    id: 'maintenance',
+    title: 'Maintenance',
+    category:'HOUSEKEEPING AND MAINTENANCE',
+    icon: Settings,
+    summary: 'This page shows the maintenance proceedures',
+    sections: [
+      {
+        title: 'Equipment and Machinery Maintenance',
+        content: '',
+        type: 'text'
+      }
+
+
+
+
+
+
+
+
+
+    ]
   }
+]

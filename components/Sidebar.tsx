@@ -1,9 +1,41 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { wikiContent } from '../data/wikiContent';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, ChevronDown, ChevronRight } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
+  const location = useLocation();
+  // Extract unique categories from content, defaulting to 'Procedures'
+  const categories = Array.from(new Set(wikiContent.map(p => p.category || 'Procedures')));
+  
+  // State to track expanded categories
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+  // Helper to get pages for a category
+  const getPagesByCategory = (cat: string) => wikiContent.filter(p => (p.category || 'Procedures') === cat);
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
+  // Auto-expand category based on active route
+  useEffect(() => {
+    const currentPathId = location.pathname.split('/').pop();
+    if (currentPathId) {
+      const activePage = wikiContent.find(p => p.id === currentPathId);
+      if (activePage) {
+        const category = activePage.category || 'Procedures';
+        setExpandedCategories(prev => ({
+          ...prev,
+          [category]: true
+        }));
+      }
+    }
+  }, [location.pathname]);
+
   return (
     <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col h-screen fixed left-0 top-0 overflow-y-auto border-r border-slate-800 z-10 shadow-xl">
       <div className="p-6 border-b border-slate-800">
@@ -18,7 +50,7 @@ const Sidebar: React.FC = () => {
         <NavLink
           to="/"
           className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors mb-4 ${
               isActive
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'hover:bg-slate-800 text-slate-400 hover:text-white'
@@ -29,34 +61,47 @@ const Sidebar: React.FC = () => {
           <span className="font-medium">Dashboard</span>
         </NavLink>
 
-        <div className="pt-4 pb-2 px-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Procedures
-          </p>
-        </div>
+        {categories.map((category) => {
+          const isOpen = expandedCategories[category];
+          const pages = getPagesByCategory(category);
 
-        {wikiContent.map((page) => {
-          const Icon = page.icon;
           return (
-            <NavLink
-              key={page.id}
-              to={`/policy/${page.id}`}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors mb-1 ${
-                  isActive
-                    ? 'bg-slate-800 text-white border-l-4 border-blue-500'
-                    : 'hover:bg-slate-800/50 text-slate-400 hover:text-white'
-                }`
-              }
-            >
-              <Icon size={18} />
-              <span className="text-sm font-medium">{page.title}</span>
-            </NavLink>
+            <div key={category} className="mb-2">
+              <button
+                onClick={() => toggleCategory(category)}
+                className="w-full flex items-center gap-2 px-4 py-2 mb-1 text-xs font-bold text-slate-500 uppercase tracking-wider hover:bg-slate-800/50 hover:text-slate-200 transition-colors rounded-lg focus:outline-none"
+              >
+                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                <span className="text-left">{category}</span>
+              </button>
+
+              {isOpen && (
+                <div className="space-y-1 ml-2 border-l border-slate-700 pl-2 animate-fadeIn">
+                  {pages.map((page) => {
+                    const Icon = page.icon;
+                    return (
+                      <NavLink
+                        key={page.id}
+                        to={`/policy/${page.id}`}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                            isActive
+                              ? 'bg-slate-800 text-white border-l-4 border-blue-500'
+                              : 'hover:bg-slate-800/50 text-slate-400 hover:text-white'
+                          }`
+                        }
+                      >
+                        <Icon size={18} />
+                        <span className="text-sm font-medium">{page.title}</span>
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>
-
-        
 
       <div className="p-4 border-t border-slate-800">
         <div className="bg-slate-800 rounded-lg p-3">
