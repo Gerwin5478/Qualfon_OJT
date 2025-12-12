@@ -9,8 +9,8 @@ import {
   Wrench,
   Circle,
   Home,
-  Settings
-
+  Settings,
+  BrushCleaning
 } from 'lucide-react';
 
 export const wikiContent: WikiPageData[] = [
@@ -392,9 +392,8 @@ export const wikiContent: WikiPageData[] = [
              label: 'Download Checklist',
              link: '#' 
            }
-        ]
-      }
-      
+        ],
+      },
     ]
   },
   {
@@ -409,15 +408,34 @@ export const wikiContent: WikiPageData[] = [
         content: '',
         type: 'text'
       }
-
-
-
-
-
-
-
-
-
     ]
+  },
+  {
+    id: 'blank-sub-category',
+    title: 'Day Shift SOP',
+    icon: BrushCleaning,
+    category: 'HOUSEKEEPING AND MAINTENANCE',
+    parentPageId: 'eee-page',
+    summary: '',
+    sections: [
+      {
+        title: 'Office Area (DAILY)',
+        content:[ 'Clean the floor',
+        'Wipe the tables',
+        'Lightly and gently clean the system units',
+        'Clean and wipe the glass doors',
+        'Mop the floor daily',
+        'Inspect office trash bins and empty them on a regular schedule.',
+        ],
+        type: 'text'
+      },
+      {
+        title: '',
+        content: '',
+        type: 'text'
+      }  
+    ]
+    
+
   }
 ]

@@ -31,4 +31,5 @@ export interface WikiPageData {
   summary: string;
   sections: SubSection[];
   category?: string;
+  parentPageId?: string;
 }
