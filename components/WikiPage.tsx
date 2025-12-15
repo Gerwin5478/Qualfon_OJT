@@ -162,7 +162,7 @@ const WikiPage: React.FC = () => {
       </div>
 
       <div className="mt-12 mb-8 p-6 bg-slate-100 rounded-xl text-center">
-        <p className="text-slate-500 text-sm">Always refer to the original FD-06 PDF document for official audits.</p>
+        <p className="text-slate-500 text-sm">Always refer to the original Fixed Asset Policy and other documents for official audits.</p>
       </div>
     </div>
   );

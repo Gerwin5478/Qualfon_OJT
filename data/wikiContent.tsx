@@ -11,7 +11,9 @@ import {
   Home,
   Settings,
   BrushCleaning,
-  DoorClosed
+  DoorClosed,
+  ShieldAlert
+  
 } from 'lucide-react';
 
 export const wikiContent: WikiPageData[] = [
@@ -229,8 +231,10 @@ export const wikiContent: WikiPageData[] = [
     sections: [
       {
         title: 'Asset Schedules',
-        content: 'Finance maintains the Fixed Asset Schedule (capitalized items) and Inventory Schedule (low-value items). Facilities maintains a Custodian Listing.',
-        type: 'text'
+        content: ['Finance maintains the Fixed Asset Schedule (capitalized items) and Inventory Schedule (low-value items).',
+        'Facilities maintains a Custodian Listing.'
+        ],
+        type: 'list'
       },
       {
         title: 'Reconciliation',
@@ -246,7 +250,16 @@ export const wikiContent: WikiPageData[] = [
           'Discrepancies must be investigated and settled within 10 days.'
         ],
         type: 'list'
-      }
+      },
+      {
+        title: 'Missing Fixed Assets',
+        content: ['If a fixed asset is missing, the Asset Custodian has 10 working days to locate it',
+          ' If the asset is not found within this period, an Incident Report must be filed.',
+          'An asset is declared a "Hopeless Case" after 3 failed retrieval attempts (or 2 failed attempts + a Demand Letter) for separated employees.',
+          '  If an asset is lost or damaged by an employee, and they are liable, the salary deduction is computed based on the net book value OR 20% of the purchase price, whichever is higher.',
+        ],
+        type: 'list'
+      },
     ]
   },
   {
@@ -290,29 +303,38 @@ export const wikiContent: WikiPageData[] = [
         content: ['Initiation/Identification of Asset for Disposal using Asset Disposal Form',
         'Assessment of IT Equipment using IT Equipment Assessment Report',
         'Bidding Process (Assisted by Procurement)',
+        'The Facilities department evaluates the bids using the Cost - Benefit Analysis Report (CBAR)',
         'Evaluation and Selection of Buyer',
         'Approval - Asset Disposal Form (reflecting the final bidder, approved by management/CoFO) ',
+        'Gate pass - Needed when assets exits the building',
         'Actual Disposal - Documentation of actual disposal witnessed by Facilities, Finance, and security' 
         ],
-        type: 'list'
+        type: 'list',
+        downloadLink:'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/SitePages/KPI-Creation-Process-&-Guidelines/Doc1.docx?web=1',
+        downloadLabel:'Download Unofficial CBAR Form '
       },
       {
         title: '(FOR NON IT EQUIPMENT) Asset Assessment Report',
         content: "Required for Non-IT related asset disposal, detailing the Facilities Department's assessment of the asset's condition and validity of disposal.",
         type: 'text',
         downloadLink:'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc2.aspx?action=edit&sourcedoc=%7Bd6cb9514-e59e-459f-8cf0-f0b0f5fe5568%7D&wdOrigin=TEAMS-WEB.undefined_ns.rwc&wdExp=TEAMS-TREATMENT&wdhostclicktime=1765522860236&web=1',
-        downloadLabel:'Asset Assessment Report File()'
+        downloadLabel:'Asset Assessment Report File()',
+
         },
       {
         title: 'NON IT Equipment Disposal Thru Scrap Sales',
         content: ['Initiation/Identification of Asset for Disposal using Asset Disposal Form   ', 
         'Assessment of Non-IT Equipment using Asset Assessment Report ',
         'Bidding Process (Assisted by Procurement)',
+        'The Facilities department evaluates the bids using the Cost - Benefit Analysis Report (CBAR)',
         'Evaluation and Selection of Buyer',
         'Approval - Asset Disposal Form (reflecting the final bidder, approved by management/CoFO)',
+        'Gate pass - Needed when assets exits the building',
         'Actual Disposal -Documentation of actual disposal witnessed by Facilities, Finance, and security',
         ],
-        type: 'list'
+        type: 'list',
+        downloadLink:'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/SitePages/KPI-Creation-Process-&-Guidelines/Doc1.docx?web=1',
+        downloadLabel:'Download Unofficial CBAR Form '
       },
       {
         title: 'Prerequisites',
@@ -325,6 +347,7 @@ export const wikiContent: WikiPageData[] = [
         title: 'Asset Disposal thru Donation',
         content: ['Identification and Assessment using IT Asset Assessment Report or Asset Assessment Report',
         'Approval - Asset Disposal Form, signed by authorized approvers',
+        'Gate pass - Needed when assets exits the building',
         'Confirmation of Donation- Deed of Donation or similar document transferring ownership',
         ],
         type: 'list'
@@ -333,7 +356,7 @@ export const wikiContent: WikiPageData[] = [
   },
   {
     id: 'repair',
-    title: 'Asset Repair',
+    title: 'Damaged Asset and Repair',
     icon: Wrench,
     category: 'Fixed Asset Procedures',
     summary: 'How assets are evaluated if they are repairable or not',
@@ -398,7 +421,7 @@ export const wikiContent: WikiPageData[] = [
     title: 'Housekeeping',
     icon: Home,
     category: 'HOUSEKEEPING AND MAINTENANCE',
-    summary: 'This page provides an overview of the company’s cleanliness and proceedures',
+    summary: 'This page provides an overview of the company’s cleanliness and procedures',
     sections: [
       {
         title: 'Daily Monitoring Activities HouseKeeping ',
@@ -537,7 +560,7 @@ export const wikiContent: WikiPageData[] = [
     title: 'Maintenance',
     category:'HOUSEKEEPING AND MAINTENANCE',
     icon: Settings,
-    summary: 'This page shows the maintenance proceedures',
+    summary: 'This page shows the maintenance procedures',
     sections: [
       {
         title: 'DAILY UPS Maintenance And Monitoring',
@@ -628,5 +651,20 @@ export const wikiContent: WikiPageData[] = [
 
       }, 
     ]
-  }
+  },
+  {
+  id: 'security',
+  title: 'Security',
+  icon: ShieldAlert,
+  category: "Security",
+  summary: 'This page explains the standard operating preocedure of the security department',
+  sections: [
+    {
+    title: '',
+    content: '',
+    type: 'text'
+    }
+
+  ]
+}
 ]
