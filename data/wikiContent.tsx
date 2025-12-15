@@ -10,7 +10,8 @@ import {
   Circle,
   Home,
   Settings,
-  BrushCleaning
+  BrushCleaning,
+  DoorClosed
 } from 'lucide-react';
 
 export const wikiContent: WikiPageData[] = [
@@ -128,7 +129,7 @@ export const wikiContent: WikiPageData[] = [
         images: [
                 'https://github.com/Gerwin5478/OJT-FILES/blob/main/adw.jpg?raw=true',
                 'https://github.com/Gerwin5478/OJT-FILES/blob/main/content.png?raw=true',
-  ]
+        ]
       },
       {
         title: 'Step 6: Final Documentation',
@@ -146,7 +147,7 @@ export const wikiContent: WikiPageData[] = [
   },
   {
     id: 'issuance',
-    title: 'Issuance & Transfer',
+    title: 'Issuance, Transfer & Gatepass',
     icon: Truck,
     category: 'Fixed Asset Procedures',
     summary: 'Moving assets between users, departments, or locations.',
@@ -160,6 +161,7 @@ export const wikiContent: WikiPageData[] = [
           'Documents must be signed by the user upon receipt.',
           'The documents are to be properly signed by the recipient to confirm receipt',
           'Both User and Facilities Department retain copies.',
+          'Gate pass are required if the asset exits the building',
         ],
         type: 'list',
         downloadLink:'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/Forms/AllItems.aspx?id=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines%2FFO%2DFA001%2DFixed%2DAsset%2DIssuance%2DAccountability%2DAgreement%5FYUBIKEYS%2D1%2D%2D4%2D%2Epdf&parent=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines',
@@ -174,6 +176,7 @@ export const wikiContent: WikiPageData[] = [
             '---• Duplicate: Requester\n', 
             '---• Triplicate: Accounting (Finance)\n', 
             "---• Quadruplicate: Guard's Copy",
+            'Gate pass are required if the asset exits the building',
             'Inventory personnel updates the FIXED ASSET FILE by adding a new entry to reflect the asset’s new location and status (DO NOT DELETE THE PREVIOUS RECORD)'
           ],
           type: 'list',
@@ -188,7 +191,33 @@ export const wikiContent: WikiPageData[] = [
 
           downloadLink:'https://qualfon-my.sharepoint.com/personal/francis_tadena_qualfon_com/SiteAssets/Forms/AllItems.aspx?id=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines%2FNOT%2DOFFICIAL%2DFixed%2DAsset%2DReturn%2DSlip%2Epdf&parent=%2Fpersonal%2Ffrancis%5Ftadena%5Fqualfon%5Fcom%2FSiteAssets%2FSitePages%2FKPI%2DCreation%2DProcess%2D%26%2DGuidelines',
           downloadLabel: 'NOT OFFICIAL Fixed Asset Return Slip File'
-      }
+      },
+    ]
+  },
+  {
+    id: 'gate-pass',
+    title: 'Gate Pass',
+    icon: DoorClosed,
+    category: 'Fixed Asset Procedures',
+    summary: 'A Gate Pass is required for transfers of assets outside the Company building. ',
+    sections: [
+      {
+        title: 'Procedures requiring a Gate Pass when an asset exits the company premises',
+        content: ['Asset Issuance Process - If the asset exits the building only',
+        'Property/Equipment Transfer Form - When assets are transferred outside the Company building',
+        'Asset Disposal thru Donation Process Flow',
+        'Non-IT Asset Disposal thru Scrap Sale Process Flow',
+        'IT Equipment Disposal thru Scrap Sale Process Flow',
+        'General Asset Disposal',
+
+        
+        
+        
+        ],
+        type: 'list',
+        downloadLink:'https://qualfon-my.sharepoint.com/:x:/r/personal/melvin_abogatal_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7BC3432E89-ACB8-49E1-A5E4-511DD9CAD934%7D&file=Gatepass.xlsx&action=default&mobileredirect=true&DefaultItemOpen=1',
+        downloadLabel:'Download Gate Pass Form'
+      },
     ]
   },
   {
@@ -229,7 +258,7 @@ export const wikiContent: WikiPageData[] = [
     sections: [
       {
         title: 'Authorization',
-        content: 'No asset shall be disposed of without proper authorization (Asset Disposal Form). Compliance with PEZA/BOI is required.',
+        content: 'No asset shall be disposed of without proper authorization (Asset Disposal Form) and (Gate Pass Form). Compliance with PEZA/BOI is required.',
         type: 'warning'
       },
       {
@@ -397,20 +426,6 @@ export const wikiContent: WikiPageData[] = [
     ]
   },
   {
-    id: 'maintenance',
-    title: 'Maintenance',
-    category:'HOUSEKEEPING AND MAINTENANCE',
-    icon: Settings,
-    summary: 'This page shows the maintenance proceedures',
-    sections: [
-      {
-        title: 'Equipment and Machinery Maintenance',
-        content: '',
-        type: 'text'
-      }
-    ]
-  },
-  {
     id: 'blank-sub-category',
     title: 'Day Shift SOP',
     icon: BrushCleaning,
@@ -427,15 +442,191 @@ export const wikiContent: WikiPageData[] = [
         'Mop the floor daily',
         'Inspect office trash bins and empty them on a regular schedule.',
         ],
-        type: 'text'
+        type: 'list'
       },
       {
-        title: '',
-        content: '',
-        type: 'text'
-      }  
-    ]
-    
+        title: 'Comfort Room (DAILY)',
+        content: ['Wipe the mirrors',
+        'Clean and sanitize the sinks',
+        'Keep the urinal and toilet seat clean',
+        'Brush the toilet seat daily',
+        'Mop the floor',
+        'Check all the trash bins and empty them',
+        ],
+        type: 'list'
+      },
+      {
+        title: 'Lobby Area',
+        content:[ 'Clean all the glass windows',
+        "Clean the guard's table",
+        'Sweep the floor',
+        'Apply floor wax every monday'
+        ],
+        type: 'list'
+      },
+      {
+        title: 'Production area',
+        content: ['Clean and wipe the tables',
+        'Gently wipe the system unit',
+        'Wipe the chairs',
+        'Clean the coach room and conference room daily',
+        'vacuum every monday'
+        ],
+        type: 'list'
+      },
+      {
+        title: 'Pantry Area and Gaming Lounge',
+        content:['Wipe the tables',
+        'Swipe the floor',
+        'Mop daily',
+        ],
+        type: 'list'
+      },
+      {
+        title: 'Hallway Area',
+        content: ['Dash mop DAILY',
+        'Apply wax every monday'],
+        type: 'list'
+      }
 
+    ]
+  },
+  {
+    id: 'Nightshiftsop',
+    title: 'Night Shift SOP',
+    icon: BrushCleaning,
+    category: 'HOUSEKEEPING AND MAINTENANCE',
+    parentPageId: 'eee-page',
+    summary: '',
+    sections: [
+      {
+        title: 'Recharge Area',
+        content: ['Sweep the floor every night',
+        'Wipe the floor with mop',
+        'Clean the door glass every night',
+        'Gently clean the computers',
+        'Vacuum the rooms with carpets',
+        'Empty the trash bins'
+        ],
+        type: 'list'
+      },
+      {
+        title: 'Male Sleeping and Female Sleeping Area',
+        content: ['Clean the frames',
+        'Vacuum Every monday'
+
+        ],
+        type: 'list'
+      },
+      {
+        title: 'Pantry',
+        content: ["Check the trash bins every 2 hours if it's full or not",
+        'Check all the water dispenser every 2 hours if it still has water or not',
+        'Store all the empty gallons in a safe storage area'
+
+        ],
+        type: 'list',
+        downloadLink:'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7B9EC43974-F58E-4FDF-A3A1-C7E18CB0E420%7D&file=Checklist-Night-Shift-Male-Trashbin-Pantry---Copy.xlsx&action=default&mobileredirect=true',
+        downloadLabel:'Download Pantry Checklist'
+      }
+      
+    ]
+  },
+  {
+    id: 'maintenance',
+    title: 'Maintenance',
+    category:'HOUSEKEEPING AND MAINTENANCE',
+    icon: Settings,
+    summary: 'This page shows the maintenance proceedures',
+    sections: [
+      {
+        title: 'DAILY UPS Maintenance And Monitoring',
+        content: ['Check screen status.',
+        'Verify LED indicators.',
+        'Monitor battery issues.',
+        'Inspect Environment.',
+        'Ensure ventilation.',
+        'Check for alarms or faults.',
+        ],
+        type: 'list',
+        downloadLink:'https://qualfon-my.sharepoint.com/:x:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7B3E79E8DD-01B8-4C3A-8AF8-B5496EAB5A28%7D&file=UPS-Maintenance-Checklist.xlsx&action=default&mobileredirect=true',
+        downloadLabel:'Download Daily UPS Maintenance Checklist',
+      },
+      
+    ]
+  },
+  {
+    id: 'weekly-maintenance',
+    title: 'Weekly Maintenance SOP',
+    icon: Settings,
+    category: 'HOUSEKEEPING AND MAINTENANCE',
+    parentPageId: 'maintenance',
+    summary: '',
+    sections: [
+      {
+        title: 'Weekly Tasks',
+        content: ['Reveiw event logs - Logs help identify recurring issues or trends that may need deeper inspection.',
+        'Inspect Battery Terminal - Loose or corroded terminals can cause voltage drops or fire hazards.',
+        'Check Fan Operation - Fans adjust with load. Abnormal noise or speed may indicate wear or blockage.',
+        'Verify bypass/inverter voltage &amp; frequency - Ensures stable power delivery and detects anomalies.',
+        'Test buzzer function - Ensures audible alerts are functioning for fault conditions.',
+        'After the tests are complete, complete the required signatures.'
+        ],
+        type: 'list',
+        downloadLink:'https://qualfon-my.sharepoint.com/:w:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7B52E7614E-2770-4597-A061-81E9AAA40AA2%7D&file=Weekly-Tasks.docx&action=default&mobileredirect=true',
+        downloadLabel:'Download Weekly Task File',
+
+      }, 
+    ]
+  },
+  {
+    id: 'monthly-maintenance',
+    title: 'Monthly Maintenance SOP',
+    icon: Settings,
+    category: 'HOUSEKEEPING AND MAINTENANCE',
+    parentPageId: 'maintenance',
+    summary: '',
+    sections: [
+      {
+        title: 'Monthly Tasks',
+        content: ['Perform battery test - Validates battery health and backup capacity.',
+        'Check grounding integrity - Grounding prevents electrical hazards and ensures system stability.',
+        'Inspect cable connections - Loose or degraded cables can cause overheating or faults.',
+        'Clean UPS exterior - Dust can block ventilation and cause overheating.',
+        'Verify ECO mode settings - Ensures energy-saving mode is functioning correctly.',
+        'Check dry contact signals &amp; communication ports - Ensures remote monitoring and alarms are working.',
+        'After the tests are complete, complete the required signatures.'
+        ],
+        type: 'list',
+        downloadLink:'https://qualfon-my.sharepoint.com/:w:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7B0FCFC4D2-E9A7-4D5E-ADE9-7B6324072FC1%7D&file=Monthly-Tasks.docx&action=default&mobileredirect=true',
+        downloadLabel:'Download Monthly Task File',
+
+      }, 
+    ]
+  },
+  {
+    id: 'quarterly-maintenance',
+    title: 'Quarterly Maintenance SOP',
+    icon: Settings,
+    category: 'HOUSEKEEPING AND MAINTENANCE',
+    parentPageId: 'maintenance',
+    summary: '',
+    sections: [
+      {
+        title: 'Quarterly Tasks',
+        content: ['Run full system diagnostics - Comprehensive check of all modules ensures system integrity.',
+        'Check battery backup time and capacity - Confirms battery can support expected load during outages.',
+        'Inspect surge protection devices - Protects UPS from lightning and grid surges.',
+        'Review/update system settings - Ensures parameters match operational needs and are not outdated.',
+        'Perform dedusting cycle - Prevents overheating and maintains airflow efficiency.',
+        'Verify parallel system synchronization - Ensures multiple UPS units are operating in sync without phase mismatch.',
+        'After the tests are complete, complete the required signatures.'
+        ],
+        type: 'list',
+        downloadLink:'https://qualfon-my.sharepoint.com/:w:/r/personal/francis_tadena_qualfon_com/_layouts/15/Doc.aspx?sourcedoc=%7BFD5EA540-E8FA-4A39-8005-54796380ED10%7D&file=Quarterly-Task.docx&action=default&mobileredirect=true',
+        downloadLabel:'Download Quarterly Task File',
+
+      }, 
+    ]
   }
 ]

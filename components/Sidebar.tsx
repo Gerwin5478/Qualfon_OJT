@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { wikiContent } from '../data/wikiContent';
 import { LayoutDashboard, ChevronDown, ChevronRight } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   // Extract unique categories from content, defaulting to 'Procedures'
   const categories = Array.from(new Set(wikiContent.map(p => p.category || 'Procedures')));
   
-  // State to track expanded categories
+  // State to track expanded categories and pages
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>({});
 
   // Helper to get pages for a category
   const getPagesByCategory = (cat: string) => wikiContent.filter(p => (p.category || 'Procedures') === cat);
@@ -21,17 +23,46 @@ const Sidebar: React.FC = () => {
     }));
   };
 
-  // Auto-expand category based on active route
+  const togglePage = (e: React.MouseEvent, pageId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedPages(prev => ({
+      ...prev,
+      [pageId]: !prev[pageId]
+    }));
+  };
+
+  // Auto-expand category and page based on active route
   useEffect(() => {
     const currentPathId = location.pathname.split('/').pop();
     if (currentPathId) {
       const activePage = wikiContent.find(p => p.id === currentPathId);
       if (activePage) {
+        // Expand Category
         const category = activePage.category || 'Procedures';
         setExpandedCategories(prev => ({
           ...prev,
           [category]: true
         }));
+
+        // If this page has a parent, expand the parent
+        if (activePage.parentPageId) {
+          setExpandedPages(prev => ({
+            ...prev,
+            [activePage.parentPageId!]: true
+          }));
+        } else {
+            // If this page IS a parent (and is active), ensure it stays expanded if we want
+            // or we can leave it to user interaction. 
+            // Let's check if it has children and expand it if it's the active one
+            const hasChildren = wikiContent.some(p => p.parentPageId === activePage.id);
+            if (hasChildren) {
+                setExpandedPages(prev => ({
+                    ...prev,
+                    [activePage.id]: true
+                }));
+            }
+        }
       }
     }
   }, [location.pathname]);
@@ -81,26 +112,39 @@ const Sidebar: React.FC = () => {
                   {rootPages.map((page) => {
                     const Icon = page.icon;
                     const children = pages.filter(p => p.parentPageId === page.id);
-                    
+                    const hasChildren = children.length > 0;
+                    const isPageExpanded = expandedPages[page.id];
+
                     return (
                       <div key={page.id}>
-                        <NavLink
-                          to={`/policy/${page.id}`}
-                          className={({ isActive }) =>
-                            `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
-                              isActive
-                                ? 'bg-slate-800 text-white border-l-4 border-blue-500'
-                                : 'hover:bg-slate-800/50 text-slate-400 hover:text-white'
-                            }`
-                          }
-                        >
-                          <Icon size={18} />
-                          <span className="text-sm font-medium">{page.title}</span>
-                        </NavLink>
+                        <div className="flex items-center">
+                            <NavLink
+                            to={`/policy/${page.id}`}
+                            className={({ isActive }) =>
+                                `flex-1 flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                                isActive
+                                    ? 'bg-slate-800 text-white border-l-4 border-blue-500'
+                                    : 'hover:bg-slate-800/50 text-slate-400 hover:text-white'
+                                }`
+                            }
+                            >
+                            <Icon size={18} />
+                            <span className="text-sm font-medium">{page.title}</span>
+                            </NavLink>
+                            
+                            {hasChildren && (
+                                <button 
+                                    onClick={(e) => togglePage(e, page.id)}
+                                    className="ml-1 p-1.5 rounded-md hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    {isPageExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                </button>
+                            )}
+                        </div>
                         
                         {/* Nested Children */}
-                        {children.length > 0 && (
-                          <div className="ml-4 mt-1 border-l border-slate-700 pl-2 space-y-1">
+                        {hasChildren && isPageExpanded && (
+                          <div className="ml-4 mt-1 border-l border-slate-700 pl-2 space-y-1 animate-fadeIn">
                             {children.map(child => {
                                const ChildIcon = child.icon;
                                return (

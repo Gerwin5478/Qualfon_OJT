@@ -15,6 +15,9 @@ const Dashboard: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  // Only show root pages (pages that are not children of another page)
+  const rootPages = wikiContent.filter(page => !page.parentPageId);
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Welcome Section */}
@@ -50,7 +53,7 @@ const Dashboard: React.FC = () => {
       <div>
         <h2 className="text-xl font-bold text-slate-800 mb-4">Browse Topics</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {wikiContent.map((page) => {
+          {rootPages.map((page) => {
             const Icon = page.icon;
             return (
               <Link
