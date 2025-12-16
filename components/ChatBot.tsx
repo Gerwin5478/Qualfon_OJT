@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { MessageSquare, X, Send, MinusCircle, Loader2, Sparkles } from 'lucide-react';
-import { wikiContent } from '../data/wikiContent';
+import { supabase } from '../lib/supabase';
 import { policyDocumentText } from '../data/policyDocument';
 
 interface Message {
@@ -21,6 +21,7 @@ const ChatBot: React.FC = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [wikiContext, setWikiContext] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom
@@ -32,6 +33,55 @@ const ChatBot: React.FC = () => {
     scrollToBottom();
   }, [messages, isOpen]);
 
+  // Fetch Knowledge Base from Supabase
+  useEffect(() => {
+    const fetchContext = async () => {
+      try {
+        const [pagesRes, sectionsRes] = await Promise.all([
+          supabase.from('wiki_pages').select('*'),
+          supabase.from('wiki_sections').select('*')
+        ]);
+
+        const pages = pagesRes.data || [];
+        const sections = sectionsRes.data || [];
+
+        const websiteContent = pages.map(page => {
+          const pageSections = sections
+            .filter(s => s.page_id === page.id)
+            .sort((a, b) => a.sort_order - b.sort_order);
+          
+          const sectionsText = pageSections.map(section => {
+            let contentStr = '';
+            // Handle content whether it's a string or JSON array
+            if (typeof section.content === 'string') {
+              // Sometimes JSON strings come double-encoded if not careful, but usually Supabase parses JSON cols
+              // If it's a simple string column in DB it's a string. If JSONB, it's an object/array.
+              // Our seed script put JSON strings into a text/jsonb column. 
+              // If it looks like a JSON array string, we might need to parse, but Supabase client usually handles JSONB.
+              contentStr = section.content;
+            } else if (Array.isArray(section.content)) {
+              contentStr = section.content.map((item: any) => {
+                 if (typeof item === 'string') return `- ${item}`;
+                 return `- ${item.label || item}`; 
+              }).join('\n');
+            } else if (typeof section.content === 'object') {
+                contentStr = JSON.stringify(section.content);
+            }
+            return `### ${section.title}\n${contentStr}`;
+          }).join('\n\n');
+    
+          return `PAGE: ${page.title} (Category: ${page.category || 'General'})\nSUMMARY: ${page.summary}\nCONTENT:\n${sectionsText}`;
+        }).join('\n\n-----------------------------------\n\n');
+
+        setWikiContext(websiteContent);
+      } catch (err) {
+        console.error("Failed to fetch chatbot context", err);
+      }
+    };
+
+    fetchContext();
+  }, []);
+
   // Helper to parse bold text (Markdown style **text**)
   const formatMessage = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*)/g);
@@ -41,38 +91,6 @@ const ChatBot: React.FC = () => {
       }
       return part;
     });
-  };
-
-  // Prepare context
-  const generateContext = () => {
-    // 1. Full Content from Wiki Pages (The App itself)
-    // This ensures Housekeeping, Maintenance, and SOPs are fully visible to the bot
-    const websiteContent = wikiContent.map(page => {
-      const sectionsText = page.sections.map(section => {
-        let contentStr = '';
-        if (typeof section.content === 'string') {
-          contentStr = section.content;
-        } else if (Array.isArray(section.content)) {
-          // Handle string arrays or TableItems
-          contentStr = section.content.map(item => {
-             if (typeof item === 'string') return `- ${item}`;
-             return `- ${item.label}`; 
-          }).join('\n');
-        }
-        return `### ${section.title}\n${contentStr}`;
-      }).join('\n\n');
-
-      return `PAGE: ${page.title} (Category: ${page.category || 'General'})\nSUMMARY: ${page.summary}\nCONTENT:\n${sectionsText}`;
-    }).join('\n\n-----------------------------------\n\n');
-
-    // 2. Full Policy Text
-    return `
-    WEBSITE KNOWLEDGE BASE (APP SOPs & CHECKLISTS):
-    ${websiteContent}
-
-    OFFICIAL FIXED ASSET POLICY DOCUMENT (FD-06):
-    ${policyDocumentText}
-    `;
   };
 
   const handleSend = async () => {
@@ -89,8 +107,6 @@ const ChatBot: React.FC = () => {
     try {
       // Initialize Gemini
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      const contextData = generateContext();
       
       const systemInstruction = `You are a helpful Facilities & Security assistant for Qualfon.
       
@@ -109,7 +125,11 @@ const ChatBot: React.FC = () => {
       3. Keep paragraphs short and readable.
       
       CONTEXT DATA:
-      ${contextData}`;
+      WEBSITE KNOWLEDGE BASE (APP SOPs & CHECKLISTS):
+      ${wikiContext}
+
+      OFFICIAL FIXED ASSET POLICY DOCUMENT (FD-06):
+      ${policyDocumentText}`;
 
       const chat = ai.chats.create({
         model: 'gemini-2.5-flash',

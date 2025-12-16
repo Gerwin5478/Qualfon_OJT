@@ -1,32 +1,106 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import WikiPage from './components/WikiPage';
+import Profile from './pages/Profile';
+import AdminUsers from './pages/AdminUsers';
 import ChatBot from './components/ChatBot';
+import Auth from './pages/Auth';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
+
+const Layout = ({ children }: { children?: React.ReactNode }) => {
+  return (
+    <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
+      <Sidebar />
+      <div className="flex-1 flex flex-col ml-64 min-w-0">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-8 scroll-smooth relative">
+          {children}
+        </main>
+      </div>
+      <ChatBot />
+    </div>
+  );
+};
+
+const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-blue-600" size={32} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <Layout>{children}</Layout>;
+};
+
+const AdminRoute = ({ children }: { children?: React.ReactNode }) => {
+  const { user, loading, isAdmin } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-blue-600" size={32} />
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Layout>{children}</Layout>;
+};
 
 function App() {
   return (
-    <Router>
-      <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
-        <Sidebar />
-        
-        <div className="flex-1 flex flex-col ml-64 min-w-0">
-          <Header />
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Public Route */}
+          <Route path="/auth" element={<Auth />} />
+
+          {/* Protected Routes */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
           
-          <main className="flex-1 overflow-y-auto p-8 scroll-smooth relative">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/policy/:id" element={<WikiPage />} />
-            </Routes>
-          </main>
-        </div>
-        
-        {/* Floating Chat Bot */}
-        <ChatBot />
-      </div>
-    </Router>
+          <Route path="/policy/:id" element={
+            <ProtectedRoute>
+              <WikiPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
+
+          {/* Admin Routes */}
+          <Route path="/admin/users" element={
+            <AdminRoute>
+              <AdminUsers />
+            </AdminRoute>
+          } />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

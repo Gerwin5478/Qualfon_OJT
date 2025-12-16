@@ -10,7 +10,7 @@ import {
   Circle,
   Home,
   Settings,
-  BrushCleaning,
+  Brush,
   DoorClosed,
   ShieldAlert
   
@@ -341,6 +341,7 @@ export const wikiContent: WikiPageData[] = [
         content: ['The donation must not reduce the Company’s production capacity or workforce, unless the reduction has been pre-approved, and the assets are considered excess or idle',
         ],
         type: 'warning'
+        
       },
 
       {
@@ -451,7 +452,7 @@ export const wikiContent: WikiPageData[] = [
   {
     id: 'blank-sub-category',
     title: 'Day Shift SOP',
-    icon: BrushCleaning,
+    icon: Brush,
     category: 'HOUSEKEEPING AND MAINTENANCE',
     parentPageId: 'eee-page',
     summary: '',
@@ -517,7 +518,7 @@ export const wikiContent: WikiPageData[] = [
   {
     id: 'Nightshiftsop',
     title: 'Night Shift SOP',
-    icon: BrushCleaning,
+    icon: Brush,
     category: 'HOUSEKEEPING AND MAINTENANCE',
     parentPageId: 'eee-page',
     summary: '',
