@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
@@ -11,14 +11,15 @@ import Auth from './pages/Auth';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-const Layout = ({ children }: { children?: React.ReactNode }) => {
+// New Persistent Layout Component
+const AppLayout = () => {
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
       <Sidebar />
       <div className="flex-1 flex flex-col ml-64 min-w-0">
         <Header />
         <main className="flex-1 overflow-y-auto p-8 scroll-smooth relative">
-          {children}
+          <Outlet />
         </main>
       </div>
       <ChatBot />
@@ -26,7 +27,7 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
   );
 };
 
-const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
+const ProtectedRoute = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -41,10 +42,11 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  return <Layout>{children}</Layout>;
+  // Renders the layout which contains the Outlet for child routes
+  return <AppLayout />;
 };
 
-const AdminRoute = ({ children }: { children?: React.ReactNode }) => {
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
@@ -59,7 +61,7 @@ const AdminRoute = ({ children }: { children?: React.ReactNode }) => {
     return <Navigate to="/" replace />;
   }
 
-  return <Layout>{children}</Layout>;
+  return <>{children}</>;
 };
 
 function App() {
@@ -70,31 +72,19 @@ function App() {
           {/* Public Route */}
           <Route path="/auth" element={<Auth />} />
 
-          {/* Protected Routes */}
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/policy/:id" element={
-            <ProtectedRoute>
-              <WikiPage />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
-
-          {/* Admin Routes */}
-          <Route path="/admin/users" element={
-            <AdminRoute>
-              <AdminUsers />
-            </AdminRoute>
-          } />
+          {/* Protected Routes wrapped in persistent layout */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/policy/:id" element={<WikiPage />} />
+            <Route path="/profile" element={<Profile />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin/users" element={
+              <AdminRoute>
+                <AdminUsers />
+              </AdminRoute>
+            } />
+          </Route>
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

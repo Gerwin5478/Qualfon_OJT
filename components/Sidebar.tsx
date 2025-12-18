@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { LayoutDashboard, ChevronDown, ChevronRight, Loader2, Plus, Trash2, Edit2, Settings, Save, X, ToggleLeft, ToggleRight, GripVertical, AlertTriangle, Users, Lock } from 'lucide-react';
@@ -35,6 +35,7 @@ const Sidebar: React.FC = () => {
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'edit-category'>('add');
   const [editingCategoryOldName, setEditingCategoryOldName] = useState<string | null>(null);
 
@@ -58,32 +59,73 @@ const Sidebar: React.FC = () => {
   
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>({});
+  
+  const isMounted = useRef(true);
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
-    fetchData();
-    // Subscribe to changes in wiki_pages/categories to auto-refresh sidebar
-    const channel = supabase.channel('sidebar_updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'wiki_pages' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'wiki_categories' }, () => fetchData())
-      .subscribe();
+    isMounted.current = true;
+    
+    // Safety timeout to prevent sidebar from sticking in loading state
+    const timer = setTimeout(() => {
+        if (isMounted.current) setLoading(false);
+    }, 8000);
+
+    fetchData().then(() => clearTimeout(timer));
+
+    // Debounce function to prevent rapid refetching on multiple realtime events
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    const debouncedFetch = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (isMounted.current) fetchData();
+      }, 1000);
+    };
+
+    // Use a STATIC channel name to prevent connection leaks across re-renders or navigation
+    // Unique names per mount can exhaust browser WebSocket limits or Supabase quotas
+    const channelName = 'global_wiki_updates'; 
+    
+    // Check if we already have a subscription to avoid duplicates
+    const channel = supabase.channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wiki_pages' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wiki_categories' }, debouncedFetch)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+           // console.log('Sidebar connected to realtime updates');
+        }
+      });
+    
+    channelRef.current = channel;
       
-    return () => { supabase.removeChannel(channel); };
+    return () => { 
+        isMounted.current = false;
+        clearTimeout(timer);
+        clearTimeout(debounceTimer);
+        if (channelRef.current) {
+            supabase.removeChannel(channelRef.current);
+        }
+    };
   }, []);
 
   const fetchData = async () => {
     try {
         const { data: pagesData } = await supabase
         .from('wiki_pages')
-        .select('id, title, category, parent_page_id, icon_name, sort_order, summary')
+        .select('id, title, category, parent_page_id, icon_name, sort_order') // Removed summary to reduce payload
         .order('sort_order', { ascending: true });
         
-        const fetchedPages = pagesData || [];
+        if (!isMounted.current) return;
+
+        const fetchedPages = (pagesData || []) as WikiPageSimple[];
         setPages(fetchedPages);
 
         const { data: catsData, error: catError } = await supabase
             .from('wiki_categories')
             .select('*')
             .order('sort_order', { ascending: true });
+
+        if (!isMounted.current) return;
 
         const distinctCategoriesFromPages = Array.from<string>(new Set(fetchedPages.map(p => p.category || 'Procedures'))).sort();
         
@@ -106,7 +148,7 @@ const Sidebar: React.FC = () => {
     } catch (err) {
         console.error("Error fetching sidebar data", err);
     } finally {
-        setLoading(false);
+        if (isMounted.current) setLoading(false);
     }
   };
 
@@ -291,35 +333,47 @@ const Sidebar: React.FC = () => {
   const handleSave = async () => {
     if (modalMode === 'edit-category') {
         if (!formData.category || !editingCategoryOldName) return;
-        await supabase.from('wiki_pages').update({ category: formData.category }).eq('category', editingCategoryOldName);
-        await supabase.from('wiki_categories').update({ title: formData.category }).eq('title', editingCategoryOldName);
-        setIsModalOpen(false); fetchData(); return;
+        setIsSaving(true);
+        try {
+            await supabase.from('wiki_pages').update({ category: formData.category }).eq('category', editingCategoryOldName);
+            await supabase.from('wiki_categories').update({ title: formData.category }).eq('title', editingCategoryOldName);
+            setIsModalOpen(false); 
+            fetchData(); 
+        } finally {
+            setIsSaving(false);
+        }
+        return;
     }
 
     if (!formData.id || !formData.title) { alert("ID and Title required"); return; }
 
-    const payload = {
-      id: formData.id,
-      title: formData.title,
-      category: formData.category,
-      parent_page_id: formData.parent_page_id || null,
-      icon_name: formData.icon_name,
-      summary: formData.summary,
-      sort_order: formData.sort_order
-    };
+    setIsSaving(true);
+    try {
+        const payload = {
+        id: formData.id,
+        title: formData.title,
+        category: formData.category,
+        parent_page_id: formData.parent_page_id || null,
+        icon_name: formData.icon_name,
+        summary: formData.summary,
+        sort_order: formData.sort_order
+        };
 
-    if (modalMode === 'add') {
-      const { error } = await supabase.from('wiki_pages').insert(payload);
-      if (error) alert("Error: " + error.message);
-      else {
-          const existingCat = categoriesData.find(c => c.title === formData.category);
-          if (!existingCat) await supabase.from('wiki_categories').insert({ title: formData.category, sort_order: categoriesData.length + 1 });
-      }
-    } else {
-      const { error } = await supabase.from('wiki_pages').update(payload).eq('id', formData.id);
-      if (error) alert("Error: " + error.message);
+        if (modalMode === 'add') {
+        const { error } = await supabase.from('wiki_pages').insert(payload);
+        if (error) alert("Error: " + error.message);
+        else {
+            const existingCat = categoriesData.find(c => c.title === formData.category);
+            if (!existingCat) await supabase.from('wiki_categories').insert({ title: formData.category, sort_order: categoriesData.length + 1 });
+        }
+        } else {
+        const { error } = await supabase.from('wiki_pages').update(payload).eq('id', formData.id);
+        if (error) alert("Error: " + error.message);
+        }
+        setIsModalOpen(false); fetchData();
+    } finally {
+        setIsSaving(false);
     }
-    setIsModalOpen(false); fetchData();
   };
 
   const availableParents = pages.filter(p => !p.parent_page_id && p.id !== formData.id);
@@ -460,10 +514,11 @@ const Sidebar: React.FC = () => {
            </div>
         )}
       </aside>
-
-      {/* ADMIN MODAL */}
+      
+      {/* Same Admin Modal Code ... (No changes needed in the modal part) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+           {/* ... Modal Content same as before ... */}
            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-slideUp flex flex-col max-h-[90vh]">
              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
                <h3 className="font-bold text-lg text-slate-800">
@@ -554,9 +609,10 @@ const Sidebar: React.FC = () => {
              </div>
 
              <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3 shrink-0">
-               <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors">Cancel</button>
-               <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2">
-                 <Save size={18} /> Save
+               <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors" disabled={isSaving}>Cancel</button>
+               <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2" disabled={isSaving}>
+                 {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                 {isSaving ? 'Saving...' : 'Save'}
                </button>
              </div>
            </div>

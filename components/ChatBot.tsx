@@ -16,13 +16,15 @@ const ChatBot: React.FC = () => {
     { 
       id: 'welcome', 
       role: 'model', 
-      text: 'Hello! I am your Facilities Assistant. Ask me about **Housekeeping SOPs**, **Maintenance Checklists**, or the **FD-06 Asset Policy**.' 
+      text: 'Hello! I am your Qualfon Assistant. I can help with **Housekeeping**, **Maintenance**, **Asset Policies**, **HR Policies**, and provide **Downloadable Forms**. How can I assist you?' 
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [wikiContext, setWikiContext] = useState('');
+  const [formsContext, setFormsContext] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isContextLoaded = useRef(false);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -33,61 +35,79 @@ const ChatBot: React.FC = () => {
     scrollToBottom();
   }, [messages, isOpen]);
 
-  // Fetch Knowledge Base from Supabase
+  // Lazy load context when chat is opened
   useEffect(() => {
-    const fetchContext = async () => {
-      try {
-        const [pagesRes, sectionsRes] = await Promise.all([
-          supabase.from('wiki_pages').select('*'),
-          supabase.from('wiki_sections').select('*')
-        ]);
+    if (isOpen && !isContextLoaded.current) {
+      fetchContext();
+    }
+  }, [isOpen]);
 
-        const pages = pagesRes.data || [];
-        const sections = sectionsRes.data || [];
+  const fetchContext = async () => {
+    try {
+      const [pagesRes, sectionsRes, formsRes] = await Promise.all([
+        supabase.from('wiki_pages').select('*'),
+        supabase.from('wiki_sections').select('*'),
+        supabase.from('forms').select('*')
+      ]);
 
-        const websiteContent = pages.map(page => {
-          const pageSections = sections
-            .filter(s => s.page_id === page.id)
-            .sort((a, b) => a.sort_order - b.sort_order);
-          
-          const sectionsText = pageSections.map(section => {
-            let contentStr = '';
-            // Handle content whether it's a string or JSON array
-            if (typeof section.content === 'string') {
-              // Sometimes JSON strings come double-encoded if not careful, but usually Supabase parses JSON cols
-              // If it's a simple string column in DB it's a string. If JSONB, it's an object/array.
-              // Our seed script put JSON strings into a text/jsonb column. 
-              // If it looks like a JSON array string, we might need to parse, but Supabase client usually handles JSONB.
-              contentStr = section.content;
-            } else if (Array.isArray(section.content)) {
-              contentStr = section.content.map((item: any) => {
-                 if (typeof item === 'string') return `- ${item}`;
-                 return `- ${item.label || item}`; 
-              }).join('\n');
-            } else if (typeof section.content === 'object') {
-                contentStr = JSON.stringify(section.content);
-            }
-            return `### ${section.title}\n${contentStr}`;
-          }).join('\n\n');
-    
-          return `PAGE: ${page.title} (Category: ${page.category || 'General'})\nSUMMARY: ${page.summary}\nCONTENT:\n${sectionsText}`;
-        }).join('\n\n-----------------------------------\n\n');
+      const pages = pagesRes.data || [];
+      const sections = sectionsRes.data || [];
+      const forms = formsRes.data || [];
 
-        setWikiContext(websiteContent);
-      } catch (err) {
-        console.error("Failed to fetch chatbot context", err);
-      }
-    };
+      const websiteContent = pages.map(page => {
+        const pageSections = sections
+          .filter(s => s.page_id === page.id)
+          .sort((a, b) => a.sort_order - b.sort_order);
+        
+        const sectionsText = pageSections.map(section => {
+          let contentStr = '';
+          // Handle content whether it's a string or JSON array
+          if (typeof section.content === 'string') {
+            contentStr = section.content;
+          } else if (Array.isArray(section.content)) {
+            contentStr = section.content.map((item: any) => {
+               if (typeof item === 'string') return `- ${item}`;
+               return `- ${item.label || item}`; 
+            }).join('\n');
+          } else if (typeof section.content === 'object') {
+              contentStr = JSON.stringify(section.content);
+          }
+          return `### ${section.title}\n${contentStr}`;
+        }).join('\n\n');
+  
+        return `PAGE: ${page.title} (Category: ${page.category || 'General'})\nSUMMARY: ${page.summary}\nCONTENT:\n${sectionsText}`;
+      }).join('\n\n-----------------------------------\n\n');
 
-    fetchContext();
-  }, []);
+      const formsList = forms.map((f: any) => 
+        `FORM TITLE: ${f.title}\nURL: ${f.url}\nDESCRIPTION: ${f.description}\nCATEGORY: ${f.category}`
+      ).join('\n\n');
+
+      setWikiContext(websiteContent);
+      setFormsContext(formsList);
+      isContextLoaded.current = true;
+    } catch (err) {
+      console.error("Failed to fetch chatbot context", err);
+    }
+  };
 
   // Helper to parse bold text (Markdown style **text**)
   const formatMessage = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*)/g);
+    // Replace markdown links [Title](URL) with HTML <a> tags
+    let formattedText = text.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g, 
+      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-green-500 underline font-semibold hover:text-green-800">$1</a>'
+    );
+
+    // Split for Bold formatting
+    const parts = formattedText.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, index) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return <strong key={index} className="font-bold text-blue-900">{part.slice(2, -2)}</strong>;
+      }
+      // Render HTML links safely (simple replacement above, but for React we need to be careful or use dangerouslySetInnerHTML)
+      // Since this is a simple splitter, we'll try to detect the link pattern in the split parts if it survived
+      if (part.includes('<a href')) {
+         return <span key={index} dangerouslySetInnerHTML={{ __html: part }} />;
       }
       return part;
     });
@@ -108,27 +128,38 @@ const ChatBot: React.FC = () => {
       // Initialize Gemini
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      const systemInstruction = `You are a helpful Facilities & Security assistant for Qualfon.
+      const systemInstruction = `You are a helpful Facilities, Security & HR assistant for Qualfon.
       
       SOURCE MATERIAL:
-      1. **WEBSITE KNOWLEDGE BASE**: This is the "App Itself". It contains **Housekeeping SOPs** (Daily/Night Shift), **Maintenance Checklists** (UPS, Weekly, Monthly), and general safety info.
-      2. **OFFICIAL FIXED ASSET POLICY (FD-06)**: Contains formal policies for asset tagging, disposal, and forms.
+      1. **WEBSITE KNOWLEDGE BASE**: Contains **Housekeeping SOPs**, **Maintenance Checklists**, and general safety procedures.
+      2. **OFFICIAL POLICIES**: 
+         - **Fixed Asset Policy (FD-06)**
+         - **Mental Health Policy**
+         - **Hepatitis B & TB Free Workplace**
+         - **HIV/AIDS Policy**
+         - **Drug-Free Workplace**
+         - **PWD & Lactation Policy**
+         - **Anti-Sexual Harassment Policy**
+      3. **DOWNLOADABLE FORMS LIBRARY**: Contains links to specific forms and documents.
 
       INSTRUCTIONS:
-      - **Housekeeping/Maintenance/Safety**: If asked about these topics, strictly use the "WEBSITE KNOWLEDGE BASE". Quote the specific tasks (e.g., "Clean the floor", "Check battery terminal").
-      - **Asset Policy**: If asked about assets, use the FD-06 Policy text.
-      - **General**: If the answer is not in the context, say you don't have that information.
+      - **Simple & Precise**: Keep your answers short, direct, and easy to understand. Avoid long paragraphs.
+      - **Context Only**: Use ONLY the provided source material. If the answer is not there, say you don't know.
+      - **Tone**: Professional, helpful, and clear.
+      - **Providing Forms**: If the user asks for a form or file, check the **DOWNLOADABLE FORMS LIBRARY**. If found, provide the **URL** formatted as a Markdown link: [Form Title](URL). Tell them they can download it.
 
       FORMATTING RULES:
-      1. **Bold** key details (e.g. **Daily Tasks**, **Weekly**, **Php 50,000**, Form Names).
-      2. Use Bullet Points for checklists and steps.
-      3. Keep paragraphs short and readable.
+      1. **Bold** key details (e.g. **40 minutes** for lactation break, **Dismissal** for drug use).
+      2. Use Bullet Points for lists to make them readable.
       
       CONTEXT DATA:
-      WEBSITE KNOWLEDGE BASE (APP SOPs & CHECKLISTS):
+      WEBSITE KNOWLEDGE BASE:
       ${wikiContext}
 
-      OFFICIAL FIXED ASSET POLICY DOCUMENT (FD-06):
+      DOWNLOADABLE FORMS LIBRARY:
+      ${formsContext}
+
+      OFFICIAL POLICIES TEXT:
       ${policyDocumentText}`;
 
       const chat = ai.chats.create({
@@ -178,7 +209,7 @@ const ChatBot: React.FC = () => {
                 <Sparkles size={18} />
               </div>
               <div>
-                <h3 className="font-bold text-sm">Asset Wiki Assistant</h3>
+                <h3 className="font-bold text-sm">Qualfon Assistant</h3>
                 <p className="text-[10px] text-blue-200">Powered by Gemini AI</p>
               </div>
             </div>

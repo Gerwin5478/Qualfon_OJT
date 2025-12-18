@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, Navigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Info, AlertCircle, ChevronRight, Download, Loader2, Edit2, Trash2, Plus, Save, X, AlertTriangle, Image as ImageIcon, Link as LinkIcon, Upload } from 'lucide-react';
+import { Info, AlertCircle, ChevronRight, Download, Loader2, Edit2, Trash2, Plus, Save, X, AlertTriangle, Image as ImageIcon, Link as LinkIcon, Upload, RefreshCw, Home } from 'lucide-react';
 import { getIcon } from '../lib/iconMap';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -13,10 +13,11 @@ const WikiPage: React.FC = () => {
   const [page, setPage] = useState<any>(null);
   const [sections, setSections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Editing State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingSection, setEditingSection] = useState<any>(null); // null means adding new
   const [formData, setFormData] = useState({ title: '', content: '', type: 'text', sort_order: 0 });
 
@@ -30,15 +31,39 @@ const WikiPage: React.FC = () => {
 
   // Deletion State
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Timeout Reference to prevent infinite spinners
+  const timeoutRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!id) return;
-    fetchPageData(id);
+    // If no ID is present, stop loading immediately
+    if (!id) {
+        setLoading(false);
+        return;
+    }
+
+    fetchPageData(id, true);
+    
+    // Cleanup timeout on unmount or id change
+    return () => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    }
   }, [id]);
 
-  const fetchPageData = async (pageId: string) => {
-    setLoading(true);
-    setError(false);
+  // isBackground argument prevents the full page loader from showing during updates
+  const fetchPageData = async (pageId: string, isInitialLoad = false) => {
+    if (isInitialLoad) {
+        setLoading(true);
+        setError(null);
+        
+        // Set a timeout to prevent infinite loading if the network hangs or data is too large
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => {
+             setLoading(false);
+             setError("Loading timed out. The content might be too large or the connection is slow.");
+        }, 10000); // 10 seconds max
+    }
 
     try {
       const { data: pageData, error: pageError } = await supabase
@@ -48,7 +73,11 @@ const WikiPage: React.FC = () => {
         .single();
 
       if (pageError || !pageData) {
-        throw new Error('Page not found');
+        // Explicitly handle not found to stop spinner
+        if (pageError?.code === 'PGRST116') {
+             throw new Error('Page not found');
+        }
+        throw pageError || new Error('Page not found');
       }
       setPage(pageData);
 
@@ -60,12 +89,16 @@ const WikiPage: React.FC = () => {
 
       if (secError) throw secError;
       setSections(sectionsData || []);
+      
+      // Clear timeout if successful
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setError(null);
 
-    } catch (err) {
-      console.error(err);
-      setError(true);
+    } catch (err: any) {
+      console.error("WikiPage Fetch Error:", err);
+      setError(err.message || "Failed to load content.");
     } finally {
-      setLoading(false);
+      if (isInitialLoad) setLoading(false);
     }
   };
 
@@ -75,14 +108,17 @@ const WikiPage: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!deleteId) return;
+    setIsDeleting(true);
     
     const { error } = await supabase.from('wiki_sections').delete().eq('id', deleteId);
     if (error) {
       alert('Error deleting section');
     } else {
       setDeleteId(null);
-      fetchPageData(id!);
+      // Background refresh
+      fetchPageData(id!, false);
     }
+    setIsDeleting(false);
   };
 
   const openEditModal = (section: any) => {
@@ -148,6 +184,11 @@ const WikiPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     
+    // Warn if file is huge (approx 3MB limit recommendation)
+    if (file.size > 3 * 1024 * 1024) {
+        alert("Warning: This image is large (>3MB). It may slow down the page load. Please compress images before uploading.");
+    }
+    
     const reader = new FileReader();
     reader.onloadend = () => {
         const base64 = reader.result as string;
@@ -179,6 +220,7 @@ const WikiPage: React.FC = () => {
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     // Process content based on type
     let finalContent: any = formData.content;
 
@@ -187,8 +229,6 @@ const WikiPage: React.FC = () => {
     }
 
     // Split downloads back into database columns
-    // The first download goes to the legacy columns for backward compatibility/simplicity
-    // The rest go to the JSONB array
     const primaryDownload = sectionDownloads.length > 0 ? sectionDownloads[0] : null;
     const extraDownloads = sectionDownloads.length > 1 ? sectionDownloads.slice(1) : [];
 
@@ -204,34 +244,69 @@ const WikiPage: React.FC = () => {
       additional_downloads: extraDownloads
     };
 
-    if (editingSection) {
-      // Update
-      const { error } = await supabase
-        .from('wiki_sections')
-        .update(payload)
-        .eq('id', editingSection.id);
-      if (error) alert('Error updating section: ' + error.message);
-    } else {
-      // Insert
-      const { error } = await supabase
-        .from('wiki_sections')
-        .insert(payload);
-      if (error) alert('Error adding section: ' + error.message);
-    }
+    try {
+        if (editingSection) {
+        // Update
+        const { error } = await supabase
+            .from('wiki_sections')
+            .update(payload)
+            .eq('id', editingSection.id);
+        if (error) throw error;
+        } else {
+        // Insert
+        const { error } = await supabase
+            .from('wiki_sections')
+            .insert(payload);
+        if (error) throw error;
+        }
 
-    setIsModalOpen(false);
-    fetchPageData(id!);
+        setIsModalOpen(false);
+        // Background Refresh
+        fetchPageData(id!, false);
+    } catch (error: any) {
+        alert('Error saving section: ' + error.message);
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="animate-spin text-blue-500" size={40} />
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-slate-400">
+        <Loader2 className="animate-spin text-blue-500 mb-2" size={40} />
+        <p>Loading content...</p>
       </div>
     );
   }
 
-  if (error || !page) return <Navigate to="/" replace />;
+  // Improved Error / 404 UI
+  if (error && !page) {
+       return (
+           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-xl shadow-sm border border-slate-200 mt-4 mx-4">
+               <div className="bg-red-50 p-4 rounded-full mb-4 text-red-500">
+                  <AlertCircle size={48} />
+               </div>
+               <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                 {error === 'Page not found' ? 'Page Not Found' : 'Something went wrong'}
+               </h2>
+               <p className="text-slate-500 mb-6 max-w-md mx-auto">
+                 {error === 'Page not found' 
+                    ? "The content you are looking for doesn't exist or has been removed. Please check the database." 
+                    : error}
+               </p>
+               <div className="flex gap-4 justify-center">
+                   <Link to="/" className="px-5 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2">
+                       <Home size={18} /> Dashboard
+                   </Link>
+                   <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                       <RefreshCw size={18} /> Retry
+                   </button>
+               </div>
+           </div>
+       );
+  }
+
+  if (!page) return <Navigate to="/" replace />;
 
   const PageIcon = getIcon(page.icon_name);
 
@@ -257,6 +332,17 @@ const WikiPage: React.FC = () => {
         </div>
         <p className="text-lg text-slate-600 max-w-3xl leading-relaxed">{page.summary}</p>
       </div>
+      
+      {/* Error Banner for partial loads */}
+      {error && (
+         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <AlertTriangle size={20} />
+                <span>{error}</span>
+            </div>
+            <button onClick={() => fetchPageData(id!, false)} className="text-sm font-bold underline hover:text-red-800">Retry</button>
+         </div>
+      )}
 
       {/* Page Content */}
       <div className="space-y-8">
@@ -546,15 +632,17 @@ const WikiPage: React.FC = () => {
               <button 
                 onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors"
+                disabled={isSaving}
               >
                 Cancel
               </button>
               <button 
                 onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
+                disabled={isSaving}
+                className="px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <Save size={18} />
-                Save Changes
+                {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -577,13 +665,16 @@ const WikiPage: React.FC = () => {
                 <button 
                   onClick={() => setDeleteId(null)}
                   className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors"
+                  disabled={isDeleting}
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={confirmDelete}
-                  className="px-4 py-2 bg-red-600 text-white font-medium hover:bg-red-700 rounded-lg transition-colors shadow-md"
+                  disabled={isDeleting}
+                  className="px-4 py-2 bg-red-600 text-white font-medium hover:bg-red-700 rounded-lg transition-colors shadow-md flex items-center gap-2"
                 >
+                  {isDeleting ? <Loader2 className="animate-spin" size={16} /> : null}
                   Delete
                 </button>
               </div>

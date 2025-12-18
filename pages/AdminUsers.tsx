@@ -286,7 +286,7 @@ const AdminUsers: React.FC = () => {
 
             {/* Profile Content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50">
-               <div className="px-8 -mt-10 mb-6">
+               <div className="px-8 mb-6">
                  <div className="flex flex-col md:flex-row gap-6 items-end md:items-start">
                     {/* Avatar */}
                     <div className="w-24 h-24 rounded-full bg-white p-1 shadow-lg shrink-0">

@@ -5,7 +5,11 @@ import { User, Mail, Phone, MapPin, Lock, Save, Camera, Loader2, CheckCircle, Al
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  // Separate loading states
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loadingPassword, setLoadingPassword] = useState(false);
+  const [loadingPhone, setLoadingPhone] = useState(false);
+  
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // Profile State
@@ -61,7 +65,7 @@ const Profile: React.FC = () => {
   };
 
   const updateProfile = async () => {
-    setLoading(true);
+    setLoadingProfile(true);
     try {
       const { error } = await supabase.auth.updateUser({
         data: {
@@ -78,7 +82,7 @@ const Profile: React.FC = () => {
     } catch (err: any) {
       showMessage('error', err.message);
     } finally {
-      setLoading(false);
+      setLoadingProfile(false);
     }
   };
 
@@ -94,7 +98,7 @@ const Profile: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setLoadingPassword(true);
     try {
       // 1. Verify Old Password by trying to Sign In
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -120,14 +124,14 @@ const Profile: React.FC = () => {
     } catch (err: any) {
       showMessage('error', err.message);
     } finally {
-      setLoading(false);
+      setLoadingPassword(false);
     }
   };
 
   // --- 3. PHONE NUMBER ---
   const handleUpdatePhone = async () => {
     if (!phone) return;
-    setLoading(true);
+    setLoadingPhone(true);
     try {
       const { error } = await supabase.auth.updateUser({
         phone: phone
@@ -139,12 +143,12 @@ const Profile: React.FC = () => {
     } catch (err: any) {
       showMessage('error', err.message);
     } finally {
-      setLoading(false);
+      setLoadingPhone(false);
     }
   };
 
   const handleVerifyPhone = async () => {
-    setLoading(true);
+    setLoadingPhone(true);
     try {
       const { error } = await supabase.auth.verifyOtp({
         phone: phone,
@@ -160,7 +164,7 @@ const Profile: React.FC = () => {
     } catch (err: any) {
       showMessage('error', err.message);
     } finally {
-      setLoading(false);
+      setLoadingPhone(false);
     }
   };
 
@@ -271,10 +275,10 @@ const Profile: React.FC = () => {
                     </div>
                     <button 
                         onClick={updateProfile}
-                        disabled={loading}
+                        disabled={loadingProfile}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
                     >
-                        {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                        {loadingProfile ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                         Save Changes
                     </button>
                 </div>
@@ -306,7 +310,7 @@ const Profile: React.FC = () => {
                             {!isVerifyingPhone && (
                                 <button 
                                     onClick={handleUpdatePhone}
-                                    disabled={loading || phone === user?.phone}
+                                    disabled={loadingPhone || phone === user?.phone}
                                     className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-medium text-sm disabled:opacity-50"
                                 >
                                     Update
@@ -328,7 +332,7 @@ const Profile: React.FC = () => {
                                 />
                                 <button 
                                     onClick={handleVerifyPhone}
-                                    disabled={loading}
+                                    disabled={loadingPhone}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
                                 >
                                     Verify
@@ -396,10 +400,10 @@ const Profile: React.FC = () => {
 
                     <button 
                         type="submit"
-                        disabled={loading}
+                        disabled={loadingPassword}
                         className="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70 mt-4"
                     >
-                        {loading ? <Loader2 className="animate-spin" size={18} /> : <Lock size={18} />}
+                        {loadingPassword ? <Loader2 className="animate-spin" size={18} /> : <Lock size={18} />}
                         Update Password
                     </button>
                 </form>
