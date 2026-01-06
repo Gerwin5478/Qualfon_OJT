@@ -1,3 +1,4 @@
+
 import { LucideIcon } from 'lucide-react';
 
 export type SectionType = 'text' | 'list' | 'info' | 'warning' | 'image'| 'table';
@@ -32,4 +33,6 @@ export interface WikiPageData {
   sections: SubSection[];
   category?: string;
   parentPageId?: string;
+  based_on_policy_title?: string;
+  based_on_policy_url?: string;
 }

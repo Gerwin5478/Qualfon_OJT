@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, User, Mail, Phone, MapPin, Clock, Shield, MoreHorizontal, X, Loader2, Activity, CheckCircle, Smartphone, Trash2, Edit, AlertCircle, AlertTriangle, UserCheck } from 'lucide-react';
@@ -41,7 +42,6 @@ const AdminUsers: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // Use updated_at for sorting as it is more likely to exist/be populated in profiles
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -51,18 +51,7 @@ const AdminUsers: React.FC = () => {
       setUsers(data || []);
     } catch (err: any) {
       console.error("Error fetching users:", err);
-      // improved error extraction
-      let errorMessage = "An unexpected error occurred.";
-      if (typeof err === 'string') {
-        errorMessage = err;
-      } else if (err?.message) {
-        errorMessage = err.message;
-      } else if (err?.error_description) {
-         errorMessage = err.error_description;
-      } else if (typeof err === 'object') {
-         errorMessage = JSON.stringify(err);
-      }
-      setError(errorMessage);
+      setError(err.message || "Failed to load users. Ensure the 'profiles' table exists and you have admin rights.");
     } finally {
       setLoading(false);
     }
@@ -71,14 +60,14 @@ const AdminUsers: React.FC = () => {
   const executeAction = async () => {
     if (!confirmAction) return;
     setIsUpdating(true);
+    setError(null);
 
     try {
       if (confirmAction.type === 'delete') {
-         // Call the Database Function (RPC) to delete the user
+         // Note: delete_user_by_id must be defined in your Supabase Database as an RPC
          const { error } = await supabase.rpc('delete_user_by_id', { target_user_id: confirmAction.user.id });
          if (error) throw error;
          
-         // If successful
          if (selectedUser?.id === confirmAction.user.id) setSelectedUser(null);
          fetchUsers();
       } 
@@ -90,7 +79,6 @@ const AdminUsers: React.FC = () => {
 
          if (error) throw error;
          
-         // Update local state
          setUsers(users.map(u => u.id === confirmAction.user.id ? { ...u, role: confirmAction.newRole } : u));
          if (selectedUser?.id === confirmAction.user.id) {
              setSelectedUser({ ...selectedUser, role: confirmAction.newRole });
@@ -112,7 +100,9 @@ const AdminUsers: React.FC = () => {
 
       setConfirmAction(null);
     } catch (err: any) {
-       alert("Action failed: " + (err.message || JSON.stringify(err)));
+       console.error("Admin action failed:", err);
+       setError(`Action failed: ${err.message || "Unknown database error. Check your RLS policies."}`);
+       setConfirmAction(null);
     } finally {
        setIsUpdating(false);
     }
@@ -121,12 +111,17 @@ const AdminUsers: React.FC = () => {
   const pendingCount = users.filter(u => u.account_status === 'pending_approval').length;
 
   const filteredUsers = users.filter(user => {
+    const email = user.email || "";
+    const firstName = user.first_name || "";
+    const lastName = user.last_name || "";
+    const address = user.address || "";
+
     const matchesSearch = 
-     (user.email?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+     (email.toLowerCase().includes(searchQuery.toLowerCase()) || 
      user.phone?.includes(searchQuery) ||
-     user.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     user.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     user.address?.toLowerCase().includes(searchQuery.toLowerCase()));
+     firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+     lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+     address.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesFilter = viewFilter === 'all' ? true : user.account_status === 'pending_approval';
 
@@ -142,13 +137,12 @@ const AdminUsers: React.FC = () => {
 
   const getFullName = (user: UserProfile) => {
       const names = [user.first_name, user.middle_name, user.last_name].filter(Boolean);
-      return names.length > 0 ? names.join(' ') : 'No Name Set';
+      return names.length > 0 ? names.join(' ') : (user.email || 'No Name Set');
   };
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fadeIn pb-12">
       
-      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
@@ -157,7 +151,6 @@ const AdminUsers: React.FC = () => {
           <p className="text-slate-500">View and monitor registered users and their account status.</p>
         </div>
         
-        {/* Search Bar */}
         <div className="relative w-full md:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
@@ -170,7 +163,6 @@ const AdminUsers: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Tabs */}
       <div className="flex gap-4 border-b border-slate-200">
         <button 
             onClick={() => setViewFilter('all')}
@@ -187,15 +179,17 @@ const AdminUsers: React.FC = () => {
         </button>
       </div>
       
-      {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2 break-all">
-            <AlertCircle size={20} className="shrink-0" />
-            <p>{error}</p>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2 animate-fadeIn">
+            <AlertCircle size={20} className="shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Database Error</p>
+              <p className="text-sm opacity-90">{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="ml-auto hover:bg-red-100 p-1 rounded-full"><X size={16}/></button>
         </div>
       )}
 
-      {/* Users Grid */}
       {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="animate-spin text-blue-500" size={40} />
@@ -237,9 +231,9 @@ const AdminUsers: React.FC = () => {
                 </div>
                 
                 <h3 className="font-bold text-slate-800 truncate mb-1">
-                    {user.first_name || user.last_name ? getFullName(user) : user.email}
+                    {getFullName(user)}
                 </h3>
-                { (user.first_name || user.last_name) && (
+                {(user.first_name || user.last_name) && user.email && (
                     <p className="text-xs text-slate-400 truncate mb-1">{user.email}</p>
                 )}
 
@@ -248,7 +242,7 @@ const AdminUsers: React.FC = () => {
                 </p>
 
                 <div className="pt-4 border-t border-slate-100 flex justify-between items-center text-sm">
-                  <span className="text-slate-500">View Details</span>
+                  <span className="text-slate-500 font-medium">View Details</span>
                   <div className="p-1.5 bg-slate-50 rounded-full text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
                     <MoreHorizontal size={16} />
                   </div>
@@ -264,12 +258,9 @@ const AdminUsers: React.FC = () => {
         </div>
       )}
 
-      {/* User Details Modal */}
       {selectedUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-slideUp flex flex-col max-h-[90vh]">
-            
-            {/* Modal Header */}
             <div className={`relative p-6 pb-16 ${selectedUser.account_status === 'pending_approval' ? 'bg-amber-600' : 'bg-slate-800'}`}>
                <button 
                 onClick={() => setSelectedUser(null)}
@@ -284,11 +275,9 @@ const AdminUsers: React.FC = () => {
                <p className="text-white/60 text-sm">System ID: {selectedUser.id}</p>
             </div>
 
-            {/* Profile Content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50">
                <div className="px-8 mb-6">
                  <div className="flex flex-col md:flex-row gap-6 items-end md:items-start">
-                    {/* Avatar */}
                     <div className="w-24 h-24 rounded-full bg-white p-1 shadow-lg shrink-0">
                         <div className="w-full h-full rounded-full bg-slate-200 overflow-hidden flex items-center justify-center text-2xl font-bold text-slate-400">
                             {selectedUser.avatar_url ? (
@@ -299,12 +288,10 @@ const AdminUsers: React.FC = () => {
                         </div>
                     </div>
                     
-                    {/* Main Info */}
                     <div className="flex-1 pt-2 md:pt-10">
                         <h3 className="text-2xl font-bold text-slate-800">{getFullName(selectedUser)}</h3>
-                        <p className="text-slate-500 mb-2">{selectedUser.email}</p>
+                        <p className="text-slate-500 mb-2">{selectedUser.email || 'Email unavailable'}</p>
                         
-                        {/* Role Selector */}
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-slate-400 uppercase">Role:</span>
                             <select 
@@ -322,7 +309,6 @@ const AdminUsers: React.FC = () => {
                </div>
 
                <div className="px-8 pb-8 space-y-6">
-                  {/* Approval Action */}
                   {selectedUser.account_status === 'pending_approval' && (
                       <div className="bg-amber-50 p-6 rounded-xl border border-amber-200">
                           <h4 className="text-sm font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -342,7 +328,6 @@ const AdminUsers: React.FC = () => {
                       </div>
                   )}
 
-                  {/* Contact Info */}
                   <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                       <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                           <User size={14} /> Personal & Contact Information
@@ -360,10 +345,10 @@ const AdminUsers: React.FC = () => {
                                   <Phone size={16} className="text-blue-500" /> {selectedUser.phone || 'Not provided'}
                               </div>
                           </div>
-                          <div>
+                          <div className="md:col-span-2">
                               <label className="text-xs text-slate-500 block mb-1">Email Address</label>
                               <div className="flex items-center gap-2 text-slate-800 font-medium">
-                                  <Mail size={16} className="text-blue-500" /> {selectedUser.email}
+                                  <Mail size={16} className="text-blue-500" /> {selectedUser.email || 'Not stored in profile'}
                               </div>
                           </div>
                          
@@ -377,7 +362,6 @@ const AdminUsers: React.FC = () => {
                       </div>
                   </div>
 
-                  {/* Danger Zone */}
                   <div className="bg-red-50 p-6 rounded-xl border border-red-100">
                       <h4 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-2 flex items-center gap-2">
                           <Trash2 size={14} /> Danger Zone
@@ -388,21 +372,18 @@ const AdminUsers: React.FC = () => {
                       <button 
                         onClick={() => setConfirmAction({ type: 'delete', user: selectedUser })}
                         disabled={isUpdating}
-                        className="bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-2 px-4 rounded-lg shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+                        className="bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-2 px-4 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                          <Trash2 size={16} />
                          Delete User Account
                       </button>
                   </div>
-
                </div>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* Confirmation Modal */}
       {confirmAction && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-slideUp border border-slate-200">
@@ -423,10 +404,10 @@ const AdminUsers: React.FC = () => {
                     </h3>
                     <p className="text-sm text-slate-600 mb-4">
                         {confirmAction.type === 'delete' 
-                            ? <span>Are you sure you want to delete <span className="font-semibold">{confirmAction.user.email}</span>? This action cannot be undone.</span>
+                            ? <span>Are you sure you want to delete <span className="font-semibold">{confirmAction.user.email || confirmAction.user.id}</span>? This action cannot be undone.</span>
                             : confirmAction.type === 'approve'
-                            ? <span>Activate account for <span className="font-semibold">{confirmAction.user.email}</span>? They will be able to log in immediately.</span>
-                            : <span>Change role for <span className="font-semibold">{confirmAction.user.email}</span> to <span className="font-bold uppercase">{confirmAction.newRole}</span>?</span>
+                            ? <span>Activate account for <span className="font-semibold">{confirmAction.user.email || confirmAction.user.id}</span>? They will be able to log in immediately.</span>
+                            : <span>Change role for <span className="font-semibold">{confirmAction.user.email || confirmAction.user.id}</span> to <span className="font-bold uppercase">{confirmAction.newRole}</span>?</span>
                         }
                     </p>
                     
@@ -456,7 +437,6 @@ const AdminUsers: React.FC = () => {
             </div>
         </div>
       )}
-
     </div>
   );
 };

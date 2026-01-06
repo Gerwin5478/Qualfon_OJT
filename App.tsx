@@ -1,11 +1,12 @@
+
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import WikiPage from './components/WikiPage';
-import Profile from './pages/Profile';
 import AdminUsers from './pages/AdminUsers';
+import Profile from './pages/Profile';
 import ChatBot from './components/ChatBot';
 import Auth from './pages/Auth';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -46,7 +47,8 @@ const ProtectedRoute = () => {
   return <AppLayout />;
 };
 
-const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+// AdminRoute component with optional children to satisfy TypeScript strictness in some environments
+const AdminRoute = ({ children }: { children?: React.ReactNode }) => {
   const { user, loading, isAdmin } = useAuth();
 
   if (loading) {

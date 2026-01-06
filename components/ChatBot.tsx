@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { MessageSquare, X, Send, MinusCircle, Loader2, Sparkles } from 'lucide-react';
@@ -162,8 +163,9 @@ const ChatBot: React.FC = () => {
       OFFICIAL POLICIES TEXT:
       ${policyDocumentText}`;
 
+      // Always use gemini-3-flash-preview for Basic Text Tasks like Q&A and policy assistance
       const chat = ai.chats.create({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         config: {
           systemInstruction: systemInstruction,
         }
