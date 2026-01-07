@@ -4,7 +4,7 @@ STANDARD OPERATING POLICIES & PROCEDURES
 FIXED ASSET POLICY
 Document No. FD-06 | Version No. 004
 Process Owner: Finance Department
-a
+adfsdf
 1. Purpose
 This policy establishes general guidelines and procedures for proper Fixed Asset Accounting and Management.
 a

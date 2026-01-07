@@ -29,7 +29,7 @@ interface ProcessedPolicy {
 }
 
 const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSuccess, categories }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1); 
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -74,10 +74,10 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSucc
       const base64Data = await readFileAsBase64(file);
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      const prompt = `Act as an expert technical writer and policy analyst for a Facilities and Security department. 
-      Read the attached document and transform it into a highly structured, simplified, and easy-to-read wiki page for employees.
-      Organize the content into logical sections like "Key Responsibilities", "Step-by-Step Procedure", "Safety Warnings", etc.
-      Return the response in JSON format.`;
+      const prompt = `Act as an expert technical writer for Facilities and Security. 
+      Read this document and convert it into a structured wiki page.
+      Organize it into logical sections. 
+      IMPORTANT: Return ONLY valid JSON. No markdown backticks.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -100,7 +100,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSucc
                   type: Type.OBJECT,
                   properties: {
                     title: { type: Type.STRING },
-                    content: { type: Type.STRING, description: "If type is list, provide content with items separated by newlines" },
+                    content: { type: Type.STRING, description: "Content text. For lists, use newlines." },
                     type: { type: Type.STRING, enum: ["text", "list", "info", "warning"] }
                   },
                   required: ["title", "content", "type"]
@@ -112,7 +112,11 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSucc
         }
       });
 
-      const rawJson = JSON.parse(response.text || "{}");
+      let textResponse = response.text || "{}";
+      // Clean potential markdown backticks if AI ignores schema rules
+      textResponse = textResponse.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+      
+      const rawJson = JSON.parse(textResponse);
       
       const cleanedSections = (rawJson.sections || []).map((s: any) => {
         if (s.type === 'list' && typeof s.content === 'string') {
@@ -132,7 +136,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSucc
       setStep(2);
     } catch (err: any) {
       console.error("AI Generation Error:", err);
-      setError("AI failed to process this document. Please ensure it's a valid PDF or text file.");
+      setError("Failed to parse document. The AI response was invalid. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -153,12 +157,11 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSucc
         category: category,
         icon_name: finalConfig.iconName,
         sort_order: 100,
-        based_on_policy_title: "AI Architected Policy",
-        based_on_policy_url: null // Removed placeholder "#" so button doesn't render
+        based_on_policy_title: "AI Generated SOP"
       });
 
       if (pageError) {
-        if (pageError.code === '23505') throw new Error(`A page with ID "${finalConfig.pageId}" already exists. Please change the URL ID.`);
+        if (pageError.code === '23505') throw new Error(`A page with ID "${finalConfig.pageId}" already exists.`);
         throw pageError;
       }
 
@@ -167,34 +170,30 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSucc
         title: s.title,
         content: s.content,
         section_type: s.type,
-        sort_order: idx + 1,
-        images: []
+        sort_order: idx + 1
       }));
 
       const { error: sectionError } = await supabase.from('wiki_sections').insert(sectionsPayload);
       if (sectionError) throw sectionError;
 
       if (finalConfig.newCategory) {
-        await supabase.from('wiki_categories').upsert({ title: finalConfig.newCategory, sort_order: 99 }, { onConflict: 'title' });
+        await supabase.from('wiki_categories').upsert({ title: finalConfig.newCategory }, { onConflict: 'title' });
       }
 
       if (user) {
-        const userName = user.user_metadata?.first_name 
-          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`
-          : user.email;
-          
+        const userName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}` : user.email;
         await supabase.from('wiki_edit_history').insert({
           page_id: finalConfig.pageId,
           user_email: user.email,
           user_name: userName,
-          action: "Generated and published via AI Policy Architect"
+          action: "Architected via AI"
         });
       }
 
       onSuccess();
     } catch (err: any) {
-      console.error("Critical Save Error:", err);
-      setError(err.message || "Failed to save sections to the database.");
+      console.error("Database Save Error:", err);
+      setError(err.message || "Failed to save to database. Check your table permissions.");
       setIsProcessing(false);
     }
   };
@@ -207,33 +206,33 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSucc
             <div className="bg-purple-100 text-purple-600 p-2 rounded-lg"><Sparkles size={24} /></div>
             <div>
               <h3 className="font-bold text-lg text-slate-800">AI Policy Architect</h3>
-              <p className="text-xs text-slate-500">Transform documents into structured wiki content</p>
+              <p className="text-xs text-slate-500">Document to Structured Wiki</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200" disabled={isProcessing}><X size={20} /></button>
         </div>
 
-        <div className="flex border-b border-slate-100 bg-white">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className={`flex-1 py-3 px-4 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${step === s ? 'border-purple-600 text-purple-600 bg-purple-50/50' : 'border-transparent text-slate-400'}`}>
-              Step {s}: {s === 1 ? 'Upload' : s === 2 ? 'Review Content' : 'Finalize'}
-            </div>
-          ))}
-        </div>
-
         <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30 custom-scrollbar">
-          {error && (<div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3 text-red-700 text-sm animate-fadeIn"><AlertCircle size={20} className="shrink-0" /><div><p className="font-bold">Database Error</p><p>{error}</p></div></div>)}
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3 text-red-700 text-sm animate-fadeIn">
+              <AlertCircle size={20} className="shrink-0" />
+              <div><p className="font-bold">Error</p><p>{error}</p></div>
+            </div>
+          )}
           
           {step === 1 && (
             <div className="max-w-md mx-auto space-y-6 py-10">
-              <div onClick={() => !isProcessing && fileInputRef.current?.click()} className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${file ? 'border-green-400 bg-green-50' : 'border-slate-300 hover:border-purple-400 hover:bg-purple-50/30'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.txt,.docx" />
+              <div 
+                onClick={() => !isProcessing && fileInputRef.current?.click()} 
+                className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${file ? 'border-green-400 bg-green-50' : 'border-slate-300 hover:border-purple-400 hover:bg-purple-50/30'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.txt" />
                 <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${file ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}><FileUp size={32} /></div>
-                {file ? (<div><p className="font-bold text-slate-800">{file.name}</p><p className="text-xs text-slate-500">Document analyzed by AI</p></div>) : (<div><p className="font-bold text-slate-800">Click to upload official document</p><p className="text-xs text-slate-500 mt-1">PDF or Text (Max 5MB)</p></div>)}
+                {file ? (<div><p className="font-bold text-slate-800">{file.name}</p></div>) : (<div><p className="font-bold text-slate-800">Select Document</p><p className="text-xs text-slate-500 mt-1">PDF or Text</p></div>)}
               </div>
               <button disabled={!file || isProcessing} onClick={processWithAI} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 group">
-                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} className="group-hover:scale-125 transition-transform" />}
-                {isProcessing ? 'AI is processing...' : 'Convert to Wiki Page'}
+                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} />}
+                {isProcessing ? 'Analyzing...' : 'Generate Wiki Draft'}
               </button>
             </div>
           )}
@@ -241,39 +240,32 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSucc
           {step === 2 && processedData && (
             <div className="space-y-8 animate-fadeIn">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Generated Title</label>
                 <input type="text" value={processedData.title} onChange={(e) => setProcessedData({...processedData, title: e.target.value})} className="text-2xl font-bold text-slate-800 w-full bg-transparent border-none focus:ring-0 p-0" />
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mt-4 mb-1">Summary</label>
-                <textarea value={processedData.summary} onChange={(e) => setProcessedData({...processedData, summary: e.target.value})} className="text-slate-500 w-full bg-transparent border-none focus:ring-0 p-0 mt-1 h-16 resize-none" />
+                <textarea value={processedData.summary} onChange={(e) => setProcessedData({...processedData, summary: e.target.value})} className="text-slate-500 w-full bg-transparent border-none focus:ring-0 p-0 mt-2 h-16 resize-none" />
               </div>
 
-              <div className="space-y-6">
-                <h4 className="font-bold text-slate-700 flex items-center gap-2 px-2"><ListChecks size={20} /> Review Sections</h4>
+              <div className="space-y-4">
                 {processedData.sections.map((section, sIdx) => (
-                  <div key={sIdx} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
-                      <input value={section.title} onChange={(e) => { const newSections = [...processedData.sections]; newSections[sIdx].title = e.target.value; setProcessedData({...processedData, sections: newSections}); }} className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-transparent border-none focus:ring-0 p-0" />
-                      <select value={section.type} onChange={(e) => { const newSections = [...processedData.sections]; newSections[sIdx].type = e.target.value as any; setProcessedData({...processedData, sections: newSections}); }} className="text-[10px] font-bold bg-slate-200 border-none rounded px-2 py-0.5 outline-none"><option value="text">Text</option><option value="list">List</option><option value="info">Info</option><option value="warning">Warning</option></select>
+                  <div key={sIdx} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm p-4">
+                    <div className="flex justify-between mb-2">
+                      <input value={section.title} onChange={(e) => { const newSections = [...processedData.sections]; newSections[sIdx].title = e.target.value; setProcessedData({...processedData, sections: newSections}); }} className="text-xs font-bold text-slate-500 uppercase bg-transparent border-none focus:ring-0 p-0" />
                     </div>
-                    <div className="p-4">
-                      <textarea 
-                        value={Array.isArray(section.content) ? section.content.join('\n') : section.content} 
-                        onChange={(e) => { 
-                          const newSections = [...processedData.sections]; 
-                          const val = e.target.value; 
-                          newSections[sIdx].content = section.type === 'list' ? val.split('\n') : val; 
-                          setProcessedData({...processedData, sections: newSections}); 
-                        }} 
-                        className="w-full text-sm text-slate-700 bg-transparent border-none focus:ring-0 p-0 min-h-[80px]" 
-                      />
-                    </div>
+                    <textarea 
+                      value={Array.isArray(section.content) ? section.content.join('\n') : section.content} 
+                      onChange={(e) => { 
+                        const newSections = [...processedData.sections]; 
+                        newSections[sIdx].content = section.type === 'list' ? e.target.value.split('\n') : e.target.value; 
+                        setProcessedData({...processedData, sections: newSections}); 
+                      }} 
+                      className="w-full text-sm text-slate-700 bg-transparent border-none focus:ring-0 p-0 min-h-[60px]" 
+                    />
                   </div>
                 ))}
               </div>
 
-              <div className="flex justify-between items-center pt-6">
-                <button onClick={() => setStep(1)} className="text-slate-500 font-bold text-sm hover:underline" disabled={isProcessing}>Discard & Start Over</button>
-                <button onClick={() => setStep(3)} className="bg-purple-600 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-purple-700 transition-all shadow-md" disabled={isProcessing}>Next: Finalize Metadata <ArrowRight size={18} /></button>
+              <div className="flex justify-between pt-6">
+                <button onClick={() => setStep(1)} className="text-slate-500 text-sm hover:underline">Restart</button>
+                <button onClick={() => setStep(3)} className="bg-purple-600 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2">Finalize <ArrowRight size={18} /></button>
               </div>
             </div>
           )}
@@ -282,32 +274,24 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ onClose, onSucc
             <div className="max-w-md mx-auto space-y-6 py-4 animate-fadeIn">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Permanent URL ID</label>
-                  <input type="text" value={finalConfig.pageId} onChange={(e) => setFinalConfig({...finalConfig, pageId: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono" placeholder="e.g. fire-safety-2024" />
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">URL ID</label>
+                  <input type="text" value={finalConfig.pageId} onChange={(e) => setFinalConfig({...finalConfig, pageId: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Target Category</label>
-                  <div className="space-y-2">
-                    <select value={finalConfig.category} onChange={(e) => setFinalConfig({...finalConfig, category: e.target.value, newCategory: ''})} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">{categories.map(c => <option key={c} value={c}>{c}</option>)}<option value="NEW">+ Create New...</option></select>
-                    {(finalConfig.category === 'NEW' || finalConfig.newCategory) && (
-                      <div className="flex gap-2 animate-slideUp"><FolderPlus className="text-purple-600 mt-2 shrink-0" size={20} /><input type="text" placeholder="Category Name" value={finalConfig.newCategory} onChange={(e) => setFinalConfig({...finalConfig, newCategory: e.target.value})} className="w-full px-4 py-2 border border-purple-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500" autoFocus /></div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Sidebar Icon</label>
-                  <div className="grid grid-cols-6 gap-2 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-lg custom-scrollbar bg-slate-50">
-                    {Object.keys(iconMap).map(iconName => { const Icon = iconMap[iconName]; return (<button key={iconName} type="button" onClick={() => setFinalConfig({...finalConfig, iconName})} className={`p-2 rounded-md flex items-center justify-center transition-all ${finalConfig.iconName === iconName ? 'bg-purple-600 text-white shadow-md scale-110' : 'bg-white text-slate-400 hover:bg-purple-50 border border-slate-200'}`}><Icon size={18} /></button>) })}
-                  </div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Category</label>
+                  <select value={finalConfig.category} onChange={(e) => setFinalConfig({...finalConfig, category: e.target.value, newCategory: ''})} className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm">
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="NEW">+ New Category</option>
+                  </select>
+                  {finalConfig.category === 'NEW' && (
+                    <input type="text" placeholder="Name..." value={finalConfig.newCategory} onChange={(e) => setFinalConfig({...finalConfig, newCategory: e.target.value})} className="w-full mt-2 px-4 py-2 border border-purple-200 rounded-lg text-sm" />
+                  )}
                 </div>
               </div>
-              <div className="flex flex-col gap-3">
-                <button onClick={handleSaveToWiki} disabled={isProcessing || !finalConfig.pageId} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-                  {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} 
-                  {isProcessing ? 'Uploading to Database...' : 'Finalize & Publish to Wiki'}
-                </button>
-                <button onClick={() => setStep(2)} className="w-full py-2 text-slate-500 font-bold text-sm hover:underline" disabled={isProcessing}>Back to Content Editor</button>
-              </div>
+              <button onClick={handleSaveToWiki} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2">
+                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} 
+                Publish to Wiki
+              </button>
             </div>
           )}
         </div>
