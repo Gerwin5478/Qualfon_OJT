@@ -39,6 +39,7 @@ const Sidebar: React.FC = () => {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit' | 'edit-category'>('add');
   const [editingCategoryOldName, setEditingCategoryOldName] = useState<string | null>(null);
   const [isPolicyEnabled, setIsPolicyEnabled] = useState(false);
@@ -75,22 +76,28 @@ const Sidebar: React.FC = () => {
   }, []);
 
   const fetchData = async () => {
+    const loadingTimeout = setTimeout(() => {
+      if (isMounted.current) setLoading(false);
+    }, 6000);
+
     try {
-        const { data: pagesData } = await supabase
+        const { data: pagesData, error: pagesError } = await supabase
           .from('wiki_pages')
           .select('*')
           .order('sort_order', { ascending: true });
         
+        if (pagesError) throw pagesError;
         if (!isMounted.current) return;
 
         const fetchedPages = (pagesData || []) as WikiPageSimple[];
         setPages(fetchedPages);
 
-        const { data: catsData } = await supabase
+        const { data: catsData, error: catsError } = await supabase
             .from('wiki_categories')
             .select('*')
             .order('sort_order', { ascending: true });
 
+        if (catsError) throw catsError;
         if (!isMounted.current) return;
 
         const distinctCategoriesFromPages = Array.from<string>(new Set(fetchedPages.map(p => p.category || 'Procedures'))).sort();
@@ -118,9 +125,10 @@ const Sidebar: React.FC = () => {
         });
 
     } catch (err) {
-        console.error("Error fetching sidebar data", err);
+        console.error("Error fetching sidebar data:", err);
     } finally {
         if (isMounted.current) setLoading(false);
+        clearTimeout(loadingTimeout);
     }
   };
 
@@ -136,17 +144,16 @@ const Sidebar: React.FC = () => {
     setExpandedPages(prev => ({ ...prev, [pageId]: !prev[pageId] }));
   };
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  // --- Drag & Drop Category Logic ---
+  const handleDragStartCat = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('type', 'category');
+    e.dataTransfer.setData('index', index.toString());
   };
 
   const handleDropCategory = async (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
-    const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    if (e.dataTransfer.getData('type') !== 'category') return;
+    const draggedIndex = parseInt(e.dataTransfer.getData('index'));
     if (isNaN(draggedIndex) || draggedIndex === dropIndex) return;
 
     const newCategories = [...categoriesData];
@@ -158,6 +165,59 @@ const Sidebar: React.FC = () => {
 
     const updates = updatedCategories.map(c => ({ title: c.title, sort_order: c.sort_order, id: c.id }));
     await supabase.from('wiki_categories').upsert(updates, { onConflict: 'title' });
+  };
+
+  // --- Drag & Drop Page Logic ---
+  const handleDragStartPage = (e: React.DragEvent, pageId: string, parentId: string | null, category: string) => {
+    e.dataTransfer.setData('type', 'page');
+    e.dataTransfer.setData('pageId', pageId);
+    e.dataTransfer.setData('parentId', parentId || 'root');
+    e.dataTransfer.setData('category', category);
+  };
+
+  const handleDropPage = async (e: React.DragEvent, targetPageId: string) => {
+    e.preventDefault();
+    if (e.dataTransfer.getData('type') !== 'page') return;
+
+    const draggedId = e.dataTransfer.getData('pageId');
+    const draggedParentId = e.dataTransfer.getData('parentId') === 'root' ? null : e.dataTransfer.getData('parentId');
+    const draggedCategory = e.dataTransfer.getData('category');
+
+    if (draggedId === targetPageId) return;
+
+    // Find siblings to reorder
+    const siblings = pages.filter(p => p.category === draggedCategory && p.parent_page_id === draggedParentId);
+    const fromIndex = siblings.findIndex(p => p.id === draggedId);
+    const toIndex = siblings.findIndex(p => p.id === targetPageId);
+
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const newSiblings = [...siblings];
+    const [movedItem] = newSiblings.splice(fromIndex, 1);
+    newSiblings.splice(toIndex, 0, movedItem);
+
+    const updatedSiblings = newSiblings.map((p, idx) => ({ ...p, sort_order: idx }));
+
+    // Optimistic update
+    setPages(prev => {
+        const others = prev.filter(p => !(p.category === draggedCategory && p.parent_page_id === draggedParentId));
+        return [...others, ...updatedSiblings].sort((a, b) => a.sort_order - b.sort_order);
+    });
+
+    // DB Update
+    const updates = updatedSiblings.map(p => ({ 
+        id: p.id, 
+        sort_order: p.sort_order,
+        title: p.title,
+        category: p.category,
+        parent_page_id: p.parent_page_id,
+        icon_name: p.icon_name
+    }));
+    await supabase.from('wiki_pages').upsert(updates);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
   };
 
   const openAddModal = () => {
@@ -217,6 +277,7 @@ const Sidebar: React.FC = () => {
   const executeDelete = async () => {
     if (!deleteConfirmation) return;
     const { type, id } = deleteConfirmation;
+    setIsDeleting(true);
 
     try {
       if (type === 'category') {
@@ -228,7 +289,6 @@ const Sidebar: React.FC = () => {
           }
           await supabase.from('wiki_categories').delete().eq('title', id);
       } else {
-          // Delete dependencies first
           await supabase.from('wiki_edit_history').delete().eq('page_id', id);
           await supabase.from('wiki_sections').delete().eq('page_id', id);
           const { error } = await supabase.from('wiki_pages').delete().eq('id', id);
@@ -240,6 +300,8 @@ const Sidebar: React.FC = () => {
       if (location.pathname.includes(id)) navigate('/');
     } catch (err: any) {
       alert("Error during deletion: " + err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -273,16 +335,16 @@ const Sidebar: React.FC = () => {
     }
   };
 
-  if (loading) return <aside className="w-64 bg-slate-900 h-screen fixed p-6"><Loader2 className="animate-spin mx-auto mt-10 text-slate-500" /></aside>;
+  if (loading) return <aside className="w-64 bg-slate-900 h-screen fixed p-6 flex items-center justify-center"><Loader2 className="animate-spin text-slate-500" /></aside>;
 
   return (
     <>
       <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col h-screen fixed left-0 top-0 border-r border-slate-800 z-10 shadow-xl overflow-hidden">
         <div className="p-6 border-b border-slate-800 shrink-0">
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            <span className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-sm">FA</span> Wiki
+            <span className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-[10px]">CDO</span> Wiki
           </h1>
-          <p className="text-[10px] text-slate-500 mt-1">Facilities & Security</p>
+          <p className="text-[10px] text-slate-500 mt-1">Facilities, Physical Security, HSE</p>
         </div>
 
         {adminMode && (
@@ -304,7 +366,6 @@ const Sidebar: React.FC = () => {
             <LayoutDashboard size={20} /> <span className="font-medium">Dashboard</span>
           </NavLink>
 
-          {/* ADMINISTRATION NAV SECTION - VISIBLE ONLY IN ADMIN MODE */}
           {adminMode && (
             <div className="mb-4 animate-fadeIn">
               <div className="text-[10px] font-bold text-red-500 uppercase px-4 mt-4 mb-2 tracking-wider">System Administration</div>
@@ -324,7 +385,7 @@ const Sidebar: React.FC = () => {
             return (
               <div key={category} className="mb-2"
                 draggable={adminMode} 
-                onDragStart={(e) => adminMode && handleDragStart(e, index)} 
+                onDragStart={(e) => adminMode && handleDragStartCat(e, index)} 
                 onDragOver={(e) => adminMode && handleDragOver(e)} 
                 onDrop={(e) => adminMode && handleDropCategory(e, index)}
               >
@@ -353,8 +414,14 @@ const Sidebar: React.FC = () => {
                       const children = categoryPages.filter(p => p.parent_page_id === page.id);
                       
                       return (
-                        <div key={page.id} className="relative">
+                        <div key={page.id} className="relative"
+                            draggable={adminMode}
+                            onDragStart={(e) => adminMode && handleDragStartPage(e, page.id, null, category)}
+                            onDragOver={(e) => adminMode && handleDragOver(e)}
+                            onDrop={(e) => adminMode && handleDropPage(e, page.id)}
+                        >
                           <div className="flex items-center relative group/page-row">
+                              {adminMode && <div className="pl-1 cursor-grab text-slate-600 hover:text-slate-400 shrink-0"><GripVertical size={12} /></div>}
                               <NavLink 
                                 to={`/policy/${page.id}`} 
                                 className={({ isActive }) => `flex-1 flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors overflow-hidden ${isActive ? 'bg-slate-800 text-white border-l-4 border-blue-500' : 'hover:bg-slate-800/50 text-slate-400 hover:text-white'}`}
@@ -387,7 +454,13 @@ const Sidebar: React.FC = () => {
                               {children.map(child => {
                                  const ChildIcon = getIcon(child.icon_name);
                                  return (
-                                  <div key={child.id} className="relative group/child-row flex items-center">
+                                  <div key={child.id} className="relative group/child-row flex items-center"
+                                    draggable={adminMode}
+                                    onDragStart={(e) => adminMode && handleDragStartPage(e, child.id, page.id, category)}
+                                    onDragOver={(e) => adminMode && handleDragOver(e)}
+                                    onDrop={(e) => adminMode && handleDropPage(e, child.id)}
+                                  >
+                                     {adminMode && <div className="cursor-grab text-slate-600 hover:text-slate-400 shrink-0"><GripVertical size={10} /></div>}
                                      <NavLink to={`/policy/${child.id}`} className={({ isActive }) => `flex-1 flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-slate-800 text-white border-l-4 border-blue-500' : 'hover:bg-slate-800/50 text-slate-400 hover:text-white'}`}>
                                        <div className="relative flex items-center shrink-0">
                                          <ChildIcon size={16} className="shrink-0" />
@@ -430,6 +503,59 @@ const Sidebar: React.FC = () => {
           )}
         </div>
       </aside>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteConfirmation && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-slideUp border border-slate-100">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-red-100">
+                <AlertTriangle size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
+                Delete {deleteConfirmation.type === 'category' ? 'Category' : 'Wiki Page'}?
+              </h3>
+              <p className="text-sm text-slate-600 mb-6">
+                Are you sure you want to delete <span className="font-bold">"{deleteConfirmation.title}"</span>? 
+                {deleteConfirmation.type === 'category' ? ' This will also delete all pages within this category.' : ' This action cannot be undone.'}
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button 
+                  onClick={() => setDeleteConfirmation(null)} 
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors border border-slate-200"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={executeDelete} 
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  Yes, Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI POLICY ARCHITECT MODAL */}
+      {isAiModalOpen && (
+        <AIContentGenerator 
+          onClose={() => setIsAiModalOpen(false)} 
+          onSuccess={() => {
+            setIsAiModalOpen(false);
+            fetchData();
+          }}
+          categories={categoriesData.map(c => c.title)}
+        />
+      )}
+
+      {/* TUTORIAL OVERLAY */}
+      {isTutorialOpen && (
+        <TutorialOverlay onClose={() => setIsTutorialOpen(false)} />
+      )}
 
       {/* ADD/EDIT PAGE MODAL */}
       {isModalOpen && (
@@ -577,53 +703,6 @@ const Sidebar: React.FC = () => {
                 {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                 {modalMode === 'add' ? 'Create Page' : 'Save Changes'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* AI ARCHITECT MODAL */}
-      {isAiModalOpen && (
-        <AIContentGenerator 
-          onClose={() => setIsAiModalOpen(false)} 
-          onSuccess={() => { setIsAiModalOpen(false); fetchData(); }}
-          categories={categoriesData.map(c => c.title)}
-        />
-      )}
-
-      {/* TUTORIAL MODAL */}
-      {isTutorialOpen && (
-        <TutorialOverlay onClose={() => setIsTutorialOpen(false)} />
-      )}
-
-      {/* DELETE CONFIRMATION MODAL */}
-      {deleteConfirmation && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-slideUp border border-slate-100">
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-red-100">
-                <AlertTriangle size={32} />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Confirm Deletion</h3>
-              <p className="text-sm text-slate-600 mb-6">
-                Are you sure you want to delete <span className="font-bold text-red-600">"{deleteConfirmation.title}"</span>? 
-                {deleteConfirmation.type === 'category' ? ' All pages in this category will be removed.' : ' This action cannot be undone.'}
-              </p>
-              <div className="flex gap-3 justify-center">
-                <button 
-                  onClick={() => setDeleteConfirmation(null)} 
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors border border-slate-200"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={executeDelete} 
-                  className="flex-1 px-4 py-2.5 bg-red-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2"
-                >
-                  <Trash2 size={16} />
-                  Delete
-                </button>
-              </div>
             </div>
           </div>
         </div>

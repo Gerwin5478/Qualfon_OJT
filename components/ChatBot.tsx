@@ -20,7 +20,7 @@ const ChatBot: React.FC = () => {
     { 
       id: 'welcome', 
       role: 'model', 
-      text: 'Hello! I am your Qualfon Assistant. How can I help you with policies or procedures today?' 
+      text: 'Hello! I am your Qualfon assistant for Facilities, Security, and HSE. How can I help you today?' 
     }
   ]);
   const [inputValue, setInputValue] = useState('');
@@ -116,7 +116,7 @@ const ChatBot: React.FC = () => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      const systemInstruction = `You are a helpful assistant for Qualfon Facilities and Security.
+      const systemInstruction = `You are a helpful assistant for CDO Facilities, Physical Security, and HSE (Health, Safety, and Environment) at Qualfon.
       
       STRICT RULES:
       1. Keep answers VERY SHORT and direct (max 2-3 sentences). 
@@ -155,12 +155,16 @@ const ChatBot: React.FC = () => {
         suggestedPageId: pageId
       }]);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat Error:", error);
+      let errorMsg = "Connection error. Please try again.";
+      if (error.message && error.message.includes("available")) {
+          errorMsg = "The AI model is currently busy or undergoing maintenance. Please try again in a few minutes.";
+      }
       setMessages(prev => [...prev, { 
         id: (Date.now() + 1).toString(), 
         role: 'model', 
-        text: "Connection error. Please try again." 
+        text: errorMsg 
       }]);
     } finally {
       setIsLoading(false);
@@ -185,7 +189,7 @@ const ChatBot: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-sm">Qualfon AI</h3>
-                <p className="text-[10px] text-blue-200">Assistant</p>
+                <p className="text-[10px] text-blue-200">CDO Assistant</p>
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1 rounded-full transition-colors">
@@ -238,7 +242,7 @@ const ChatBot: React.FC = () => {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about steps or SOPs..."
+                placeholder="Ask about steps or CDO SOPs..."
                 className="w-full pl-4 pr-12 py-3 bg-slate-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 text-slate-800"
               />
               <button

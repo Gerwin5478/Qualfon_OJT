@@ -40,6 +40,7 @@ const WikiPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const timeoutRef = useRef<any>(null);
+  const isCurrentlyFetching = useRef(false);
 
   useEffect(() => {
     if (!id) {
@@ -48,7 +49,10 @@ const WikiPage: React.FC = () => {
     }
     fetchPageData(id, true);
     return () => {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
     }
   }, [id]);
 
@@ -79,7 +83,6 @@ const WikiPage: React.FC = () => {
         .eq('page_id', pageId)
         .order('created_at', { ascending: false });
       
-      // Admins get "unlimited" (high cap for performance), others get latest 5 (UI shows 1)
       if (!isAdmin) {
         query = query.limit(5);
       } else {
@@ -97,11 +100,18 @@ const WikiPage: React.FC = () => {
     if (isInitialLoad) {
         setLoading(true);
         setError(null);
+        isCurrentlyFetching.current = true;
+        
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        
+        // Use a ref-based check to avoid stale closures in the timeout
         timeoutRef.current = setTimeout(() => {
-             setLoading(false);
-             setError("Loading timed out. The content might be too large or the connection is slow.");
-        }, 10000);
+             if (isCurrentlyFetching.current) {
+               setLoading(false);
+               setError("The connection is taking longer than expected. This usually happens if the database is waking up or the content has very large images. Try refreshing.");
+               isCurrentlyFetching.current = false;
+             }
+        }, 15000); // 15 seconds is usually enough
     }
 
     try {
@@ -127,13 +137,16 @@ const WikiPage: React.FC = () => {
       setSections(sectionsData || []);
       
       fetchEditHistory(pageId);
-
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setError(null);
     } catch (err: any) {
       console.error("WikiPage Fetch Error:", err);
       setError(err.message || "Failed to load content.");
     } finally {
+      isCurrentlyFetching.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       if (isInitialLoad) setLoading(false);
     }
   };
@@ -211,7 +224,10 @@ const WikiPage: React.FC = () => {
   const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) alert("Warning: This image is large (>3MB).");
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Error: This image is too large. Please use images smaller than 2MB to ensure the page loads quickly.");
+      return;
+    }
     
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -287,7 +303,7 @@ const WikiPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-slate-400">
         <Loader2 className="animate-spin text-blue-500 mb-2" size={40} />
-        <p>Loading content...</p>
+        <p>Fetching data from secure vault...</p>
       </div>
     );
   }
@@ -298,11 +314,11 @@ const WikiPage: React.FC = () => {
                <div className="bg-red-50 p-4 rounded-full mb-4 text-red-500">
                   <AlertCircle size={48} />
                </div>
-               <h2 className="text-2xl font-bold text-slate-800 mb-2">{error === 'Page not found' ? 'Page Not Found' : 'Something went wrong'}</h2>
-               <p className="text-slate-500 mb-6 max-w-md mx-auto">{error === 'Page not found' ? "The content doesn't exist." : error}</p>
+               <h2 className="text-2xl font-bold text-slate-800 mb-2">{error === 'Page not found' ? 'Entry Not Found' : 'Session/Sync Error'}</h2>
+               <p className="text-slate-500 mb-6 max-w-md mx-auto">{error === 'Page not found' ? "The requested policy page does not exist or has been moved." : error}</p>
                <div className="flex gap-4 justify-center">
-                   <Link to="/" className="px-5 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2"><Home size={18} /> Dashboard</Link>
-                   <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"><RefreshCw size={18} /> Retry</button>
+                   <Link to="/" className="px-5 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2"><Home size={18} /> Back to Dashboard</Link>
+                   <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"><RefreshCw size={18} /> Refresh Session</button>
                </div>
            </div>
        );
@@ -311,7 +327,6 @@ const WikiPage: React.FC = () => {
   if (!page) return <Navigate to="/" replace />;
   const PageIcon = getIcon(page.icon_name);
 
-  // Filter history based on account type
   const displayHistory = isAdmin ? editHistory : editHistory.slice(0, 1);
 
   return (
@@ -379,7 +394,6 @@ const WikiPage: React.FC = () => {
         )}
       </div>
 
-      {/* Edit History Section */}
       <div className="mt-12 space-y-6">
         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
           <div className="flex items-center gap-3">
@@ -423,10 +437,6 @@ const WikiPage: React.FC = () => {
             <p className="text-sm text-slate-400">No edit history recorded for this page yet.</p>
           </div>
         )}
-      </div>
-
-      <div className="mt-8 p-6 bg-slate-100 rounded-xl text-center">
-        <p className="text-slate-500 text-sm">Always refer to the original Fixed Asset Policy and other documents for official audits.</p>
       </div>
 
       {isModalOpen && (

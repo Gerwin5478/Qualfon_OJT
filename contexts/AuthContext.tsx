@@ -41,9 +41,21 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
   const [lockedBy, setLockedBy] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  const clearAuthAndReload = async () => {
+    console.warn("Session error detected. Clearing local auth data...");
+    // Clear all possible supabase-related storage
+    for (const key in localStorage) {
+      if (key.includes('supabase.auth.token')) {
+        localStorage.removeItem(key);
+      }
+    }
+    await supabase.auth.signOut();
+    window.location.href = window.location.pathname + '#/auth';
+    window.location.reload();
+  };
+
   const fetchProfile = async (userId: string) => {
     try {
-      // Explicitly select columns to avoid errors if some are missing (like 'address')
       const { data, error } = await supabase
         .from('profiles')
         .select('id, avatar_url, role, account_status, first_name, middle_name, last_name')
@@ -51,6 +63,10 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
         .single();
       
       if (error) {
+        if (error.code === '401' || error.message.includes('JWT')) {
+          await clearAuthAndReload();
+          return null;
+        }
         console.warn("Profile fetch error:", error.message);
         return null;
       }
@@ -75,17 +91,27 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
   useEffect(() => {
     const initSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const profileData = await fetchProfile(session.user.id);
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          // Catch the 400 error seen in console
+          if (sessionError.status === 400 || sessionError.message.includes('refresh_token_not_found')) {
+            await clearAuthAndReload();
+            return;
+          }
+          throw sessionError;
+        }
+
+        if (currentSession?.user) {
+          const profileData = await fetchProfile(currentSession.user.id);
           if (profileData && profileData.account_status === 'pending_approval') {
             await supabase.auth.signOut();
             setUser(null);
             setSession(null);
             setProfile(null);
           } else {
-            setSession(session);
-            setUser(session.user);
+            setSession(currentSession);
+            setUser(currentSession.user);
           }
         }
       } catch (e) {
@@ -98,6 +124,12 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
     initSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Fix: Cast event to any to handle potentially missing type definition for 'TOKEN_REFRESH_FAILED' in TS union
+      if ((event as any) === 'TOKEN_REFRESH_FAILED') {
+        await clearAuthAndReload();
+        return;
+      }
+
       if (session?.user) {
         if (event === 'SIGNED_IN') {
           const profileData = await fetchProfile(session.user.id);
