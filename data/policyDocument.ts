@@ -7,7 +7,7 @@ Process Owner: Finance Department
 adfsdfd
 1. Purpose
 This policy establishes general guidelines and procedures for proper Fixed Asset Accounting and Management.
-a
+
 3. Responsibilities
 3.1. Facilities department:
 a. Tagging of assets before issuance.

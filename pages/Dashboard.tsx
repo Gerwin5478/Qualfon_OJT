@@ -9,22 +9,24 @@ import {
   Trash2, Edit2, Save, ChevronLeft, AlertTriangle, GripVertical, 
   HelpCircle, Settings as SettingsIcon, Link as LinkIcon, 
   ExternalLink, ChevronDown, ChevronUp, Clock, History,
-  User as UserIcon, Filter, FileUp, RefreshCw
+  User as UserIcon, Filter, FileUp, RefreshCw, Type, Settings
 } from 'lucide-react';
 import { getIcon, iconMap } from '../lib/iconMap';
 import { useAuth } from '../contexts/AuthContext';
 import TutorialOverlay from '../components/TutorialOverlay';
 import FormsLibrary from '../components/FormsLibrary';
 
+interface HeaderButton {
+  label: string;
+  url: string;
+  type: 'link' | 'download' | 'action';
+  icon_name: string;
+}
+
 interface HeaderConfig {
   title: string;
   description: string;
-  buttons: {
-    label: string;
-    url: string;
-    type: 'link' | 'download' | 'action';
-    icon_name: string;
-  }[];
+  buttons: HeaderButton[];
 }
 
 interface FormItem {
@@ -66,6 +68,7 @@ interface RecentEdit {
 const Dashboard: React.FC = () => {
   const { adminMode } = useAuth();
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [isHeaderEditOpen, setIsHeaderEditOpen] = useState(false);
   const [showAllTopics, setShowAllTopics] = useState(false);
   const formsLibraryRef = useRef<HTMLDivElement>(null);
   
@@ -76,6 +79,8 @@ const Dashboard: React.FC = () => {
     buttons: []
   });
   
+  const [tempHeaderConfig, setTempHeaderConfig] = useState<HeaderConfig>(headerConfig);
+  
   // Data State
   const [forms, setForms] = useState<FormItem[]>([]);
   const [formCategories, setFormCategories] = useState<FormCategory[]>([]);
@@ -83,6 +88,7 @@ const Dashboard: React.FC = () => {
   const [recentEdits, setRecentEdits] = useState<RecentEdit[]>([]);
   
   const [loading, setLoading] = useState(true);
+  const [savingHeader, setSavingHeader] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
 
@@ -104,9 +110,31 @@ const Dashboard: React.FC = () => {
       
       if (data && !error) {
         setHeaderConfig(data.content as HeaderConfig);
+        setTempHeaderConfig(data.content as HeaderConfig);
       }
     } catch (err) {
       console.error("Error fetching header config", err);
+    }
+  };
+
+  const saveHeaderConfig = async () => {
+    setSavingHeader(true);
+    try {
+      const { error } = await supabase
+        .from('dashboard_settings')
+        .upsert({ 
+          key: 'welcome_section', 
+          content: tempHeaderConfig 
+        }, { onConflict: 'key' });
+      
+      if (error) throw error;
+      
+      setHeaderConfig(tempHeaderConfig);
+      setIsHeaderEditOpen(false);
+    } catch (err: any) {
+      alert("Failed to save header configuration: " + err.message);
+    } finally {
+      setSavingHeader(false);
     }
   };
 
@@ -191,6 +219,22 @@ const Dashboard: React.FC = () => {
     formsLibraryRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const addButton = () => {
+    const newBtn: HeaderButton = { label: 'New Button', url: '', type: 'link', icon_name: 'Link' };
+    setTempHeaderConfig({ ...tempHeaderConfig, buttons: [...tempHeaderConfig.buttons, newBtn] });
+  };
+
+  const removeButton = (index: number) => {
+    const newBtns = tempHeaderConfig.buttons.filter((_, i) => i !== index);
+    setTempHeaderConfig({ ...tempHeaderConfig, buttons: newBtns });
+  };
+
+  const updateButton = (index: number, field: keyof HeaderButton, value: string) => {
+    const newBtns = [...tempHeaderConfig.buttons];
+    newBtns[index] = { ...newBtns[index], [field]: value };
+    setTempHeaderConfig({ ...tempHeaderConfig, buttons: newBtns });
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-400">
@@ -238,6 +282,14 @@ const Dashboard: React.FC = () => {
         <main className="lg:col-span-9 space-y-12 order-1">
           {/* Welcome Section */}
           <div className="bg-gradient-to-r from-blue-700 to-blue-900 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden group/header">
+            {adminMode && (
+              <button 
+                onClick={() => { setTempHeaderConfig(headerConfig); setIsHeaderEditOpen(true); }}
+                className="absolute top-4 right-4 z-20 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white border border-white/20 flex items-center gap-2 text-xs font-bold transition-all"
+              >
+                <Settings size={14} /> Edit Header
+              </button>
+            )}
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-3xl font-bold">{headerConfig.title}</h1>
@@ -348,6 +400,153 @@ const Dashboard: React.FC = () => {
           </div>
         </aside>
       </div>
+
+      {/* HEADER EDIT MODAL */}
+      {isHeaderEditOpen && (
+        <div className="fixed inset-0 z-[250] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-slideUp border border-slate-100">
+            <div className="bg-slate-50 px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-2xl">
+                  <Settings size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Header Configuration</h3>
+                  <p className="text-xs text-slate-500 font-medium">Modify the welcome section layout and buttons</p>
+                </div>
+              </div>
+              <button onClick={() => setIsHeaderEditOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                <X size={24} className="text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar space-y-8">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 px-1">Wiki Title</label>
+                  <input 
+                    type="text" 
+                    value={tempHeaderConfig.title}
+                    onChange={(e) => setTempHeaderConfig({...tempHeaderConfig, title: e.target.value})}
+                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 px-1">Welcome Message</label>
+                  <textarea 
+                    rows={3}
+                    value={tempHeaderConfig.description}
+                    onChange={(e) => setTempHeaderConfig({...tempHeaderConfig, description: e.target.value})}
+                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Button Manager */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Quick Action Buttons</label>
+                  <button 
+                    onClick={addButton}
+                    className="text-[10px] font-black text-blue-600 flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors"
+                  >
+                    <Plus size={12} /> Add Button
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {tempHeaderConfig.buttons.map((btn, idx) => (
+                    <div key={idx} className="p-6 bg-slate-50 border border-slate-200 rounded-3xl space-y-4 relative group">
+                      <button 
+                        onClick={() => removeButton(idx)}
+                        className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Label</label>
+                          <input 
+                            type="text" 
+                            value={btn.label}
+                            onChange={(e) => updateButton(idx, 'label', e.target.value)}
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Action/URL</label>
+                          <select 
+                            value={btn.url}
+                            onChange={(e) => updateButton(idx, 'url', e.target.value)}
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Select Action...</option>
+                            <option value="tutorial">Internal: Open Tutorial</option>
+                            <option value="forms">Internal: Scroll to Forms</option>
+                            <option value="https://qualfon-my.sharepoint.com/...">SharePoint Policy Link</option>
+                            {/* Allow custom manual input by making it a combo if needed, but select is cleaner for common actions */}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                         <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Icon</label>
+                          <div className="flex gap-2">
+                             <div className="p-2 bg-white border border-slate-200 rounded-xl text-blue-600">
+                               {React.createElement(getIcon(btn.icon_name), { size: 20 })}
+                             </div>
+                             <select 
+                                value={btn.icon_name}
+                                onChange={(e) => updateButton(idx, 'icon_name', e.target.value)}
+                                className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {Object.keys(iconMap).map(key => (
+                                  <option key={key} value={key}>{key}</option>
+                                ))}
+                              </select>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Button Theme</label>
+                          <select 
+                            value={btn.type}
+                            onChange={(e) => updateButton(idx, 'type', e.target.value as any)}
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="link">Secondary (Transparent)</option>
+                            <option value="download">Primary (White Bold)</option>
+                            <option value="action">System (Outlined)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 px-8 py-6 border-t border-slate-100 flex justify-end gap-3">
+              <button 
+                onClick={() => setIsHeaderEditOpen(false)}
+                className="px-6 py-2.5 text-slate-500 font-bold text-sm hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Discard
+              </button>
+              <button 
+                onClick={saveHeaderConfig}
+                disabled={savingHeader}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-100 flex items-center gap-2 disabled:opacity-50"
+              >
+                {savingHeader ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                Publish Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
