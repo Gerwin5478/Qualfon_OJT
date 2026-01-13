@@ -28,7 +28,7 @@ interface WikiCategory {
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAdmin, adminMode, toggleAdminMode, isEditLocked, lockedBy } = useAuth();
+  const { user, isAdmin, adminMode, toggleAdminMode } = useAuth();
   
   const [pages, setPages] = useState<WikiPageSimple[]>([]);
   const [categoriesData, setCategoriesData] = useState<WikiCategory[]>([]);
@@ -274,22 +274,38 @@ const Sidebar: React.FC = () => {
     setDeleteConfirmation({ isOpen: true, type: 'page', id: pageId, title: pageTitle });
   };
 
+  const recordDeleteHistory = async (pageId: string, pageTitle: string) => {
+    if (!user) return;
+    const userName = user.user_metadata?.first_name 
+      ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`
+      : user.email;
+
+    await supabase.from('wiki_edit_history').insert({
+      page_id: pageId,
+      user_email: user.email,
+      user_name: userName,
+      action: `Deleted page: "${pageTitle}"`
+    });
+  };
+
   const executeDelete = async () => {
     if (!deleteConfirmation) return;
-    const { type, id } = deleteConfirmation;
+    const { type, id, title } = deleteConfirmation;
     setIsDeleting(true);
 
     try {
       if (type === 'category') {
           const pagesInCat = getPagesByCategory(id);
           for (const page of pagesInCat) {
-              await supabase.from('wiki_edit_history').delete().eq('page_id', page.id);
+              // Record deletion in history instead of deleting it
+              await recordDeleteHistory(page.id, page.title);
               await supabase.from('wiki_sections').delete().eq('page_id', page.id);
               await supabase.from('wiki_pages').delete().eq('id', page.id);
           }
           await supabase.from('wiki_categories').delete().eq('title', id);
       } else {
-          await supabase.from('wiki_edit_history').delete().eq('page_id', id);
+          // Record deletion in history instead of deleting it
+          await recordDeleteHistory(id, title);
           await supabase.from('wiki_sections').delete().eq('page_id', id);
           const { error } = await supabase.from('wiki_pages').delete().eq('id', id);
           if (error) throw error;

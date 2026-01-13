@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Download, Search, Bell, ChevronRight, User, LogOut, LogIn, Loader2, Settings, Send, X, Clock, Briefcase, Info, AlertCircle, Trash2, AlertTriangle, Users, UserCircle } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -143,6 +142,8 @@ const Header: React.FC = () => {
       ? `${profile.first_name} ${profile.last_name || ''}`
       : user?.email;
 
+  const initial = profile?.first_name ? profile.first_name[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : <User size={18} />);
+
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-50 shadow-sm">
       <div className="flex-1 max-w-md relative" ref={searchRef}>
@@ -221,10 +222,8 @@ const Header: React.FC = () => {
         <div className="relative" ref={notifRef}>
           {user ? (
             <div>
-              <button onClick={() => setShowUserMenu(!showUserMenu)} className="w-9 h-9 bg-slate-800 text-white rounded-full flex items-center justify-center hover:ring-4 hover:ring-slate-100 transition-all overflow-hidden">
-                {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="User" className="w-full h-full object-cover" />
-                ) : user.email ? user.email[0].toUpperCase() : <User size={18} />}
+              <button onClick={() => setShowUserMenu(!showUserMenu)} className="w-9 h-9 bg-slate-800 text-white rounded-full flex items-center justify-center hover:ring-4 hover:ring-slate-100 transition-all overflow-hidden font-bold">
+                {initial}
               </button>
               {showUserMenu && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden animate-fadeIn z-[100]">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   FileText, Search, Download, Plus, Edit2, Trash2, 
@@ -155,6 +154,11 @@ const FormsLibrary: React.FC<FormsLibraryProps> = ({ forms, categories, onRefres
     ? Array.from(new Set(forms.map(f => f.category)))
     : [selectedCategory];
 
+  // Helper to filter out categories with zero forms
+  const activeCategories = categories.filter(cat => 
+    forms.some(form => form.category === cat.title)
+  );
+
   return (
     <div className="space-y-6">
       {/* Header & Controls */}
@@ -191,7 +195,7 @@ const FormsLibrary: React.FC<FormsLibraryProps> = ({ forms, categories, onRefres
         </div>
       </div>
 
-      {/* Category Pills */}
+      {/* Category Pills - Automatically filtered to hide empty categories */}
       <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
         <button 
           onClick={() => setSelectedCategory('All')}
@@ -199,7 +203,7 @@ const FormsLibrary: React.FC<FormsLibraryProps> = ({ forms, categories, onRefres
         >
           All Resources
         </button>
-        {categories.map(cat => (
+        {activeCategories.map(cat => (
           <button 
             key={cat.title}
             onClick={() => setSelectedCategory(cat.title)}
@@ -296,6 +300,7 @@ const FormsLibrary: React.FC<FormsLibraryProps> = ({ forms, categories, onRefres
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase">Category</label>
                   <button 
+                    type="button"
                     onClick={() => setIsCreatingNewCategory(!isCreatingNewCategory)}
                     className="text-[10px] font-bold text-blue-600 flex items-center gap-1 hover:underline"
                   >
@@ -337,11 +342,12 @@ const FormsLibrary: React.FC<FormsLibraryProps> = ({ forms, categories, onRefres
               </div>
             </div>
             <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">Cancel</button>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">Cancel</button>
               <button 
+                type="button"
                 onClick={handleSave} 
                 disabled={isProcessing}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-blue-100 flex items-center gap-2 disabled:opacity-50"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
                 Save Resource
@@ -362,8 +368,9 @@ const FormsLibrary: React.FC<FormsLibraryProps> = ({ forms, categories, onRefres
               <h3 className="text-xl font-bold text-slate-900 mb-2">Delete Resource?</h3>
               <p className="text-sm text-slate-600 mb-6">This will remove <span className="font-bold">"{deleteConfirm.title}"</span> from the library. This action cannot be undone.</p>
               <div className="flex gap-3">
-                <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-colors border border-slate-200">Cancel</button>
+                <button type="button" onClick={() => setDeleteConfirm(null)} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-colors border border-slate-200">Cancel</button>
                 <button 
+                  type="button"
                   onClick={handleDelete} 
                   disabled={isProcessing}
                   className="flex-1 py-3 bg-red-600 text-white font-bold rounded-2xl shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"

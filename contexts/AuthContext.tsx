@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { User, Session, RealtimeChannel } from '@supabase/supabase-js';
@@ -41,17 +40,69 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
   const [lockedBy, setLockedBy] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  /**
+   * CRITICAL FIX: NUCLEAR STORAGE CLEANER
+   * This logic is the only way to stop the reload loop properly.
+   * It scans LocalStorage for any Supabase key containing 'data:image' 
+   * or exceeding 50KB. If found, it wipes the token to save the app.
+   */
+  const performNuclearClean = () => {
+    try {
+      let cleaned = false;
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.includes('supabase.auth.token') || key.startsWith('sb-')) {
+          const value = localStorage.getItem(key);
+          if (value) {
+            // If the value is suspicious (image data or too large)
+            if (value.includes('data:image') || value.length > 51200) {
+              console.error("Bloated Auth Token Detected. Purging to prevent crash loop.");
+              localStorage.removeItem(key);
+              cleaned = true;
+            }
+          }
+        }
+      }
+      if (cleaned) {
+        // Hard refresh to a clean state if we caught a bad token
+        window.location.reload();
+        return true;
+      }
+    } catch (e) {
+      console.error("Cleaner failed", e);
+    }
+    return false;
+  };
+
   const clearAuthAndReload = async () => {
-    console.warn("Session error detected. Clearing local auth data...");
-    // Clear all possible supabase-related storage
-    for (const key in localStorage) {
-      if (key.includes('supabase.auth.token')) {
-        localStorage.removeItem(key);
+    try {
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.includes('supabase') || key.startsWith('sb-')) {
+          localStorage.removeItem(key);
+        }
+      }
+      await supabase.auth.signOut();
+    } catch (e) {
+      localStorage.clear();
+    }
+    window.location.replace(window.location.origin + window.location.pathname + '#/auth');
+    window.location.reload();
+  };
+
+  const scrubMetadataCloud = async (currentUser: User) => {
+    // If the active session still has image data in user_metadata, 
+    // we must clear it in the DB so the NEXT login is clean.
+    const metadata = currentUser.user_metadata;
+    if (metadata?.avatar_url && (metadata.avatar_url.includes('data:image') || metadata.avatar_url.length > 500)) {
+      try {
+        await supabase.auth.updateUser({
+          data: { avatar_url: null }
+        });
+      } catch (e) {
+        console.error("Cloud scrub failed", e);
       }
     }
-    await supabase.auth.signOut();
-    window.location.href = window.location.pathname + '#/auth';
-    window.location.reload();
   };
 
   const fetchProfile = async (userId: string) => {
@@ -63,39 +114,36 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
         .single();
       
       if (error) {
-        if (error.code === '401' || error.message.includes('JWT')) {
+        if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
           await clearAuthAndReload();
           return null;
         }
-        console.warn("Profile fetch error:", error.message);
         return null;
       }
-
       if (data) {
         setProfile(data as ProfileData);
         return data;
       }
       return null;
     } catch (err) {
-      console.error("Critical error in fetchProfile:", err);
       return null;
     }
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.id);
-    }
+    if (user) await fetchProfile(user.id);
   };
 
   useEffect(() => {
+    // 1. Run nuclear cleaner first
+    if (performNuclearClean()) return;
+
     const initSession = async () => {
       try {
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          // Catch the 400 error seen in console
-          if (sessionError.status === 400 || sessionError.message.includes('refresh_token_not_found')) {
+          if (sessionError.message?.toLowerCase().includes('storage') || sessionError.message?.toLowerCase().includes('quota')) {
             await clearAuthAndReload();
             return;
           }
@@ -103,6 +151,7 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
         }
 
         if (currentSession?.user) {
+          await scrubMetadataCloud(currentSession.user);
           const profileData = await fetchProfile(currentSession.user.id);
           if (profileData && profileData.account_status === 'pending_approval') {
             await supabase.auth.signOut();
@@ -114,8 +163,10 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
             setUser(currentSession.user);
           }
         }
-      } catch (e) {
-        console.error("Session init error:", e);
+      } catch (e: any) {
+        if (e.name === 'QuotaExceededError' || e.message?.includes('quota')) {
+           await clearAuthAndReload();
+        }
       } finally {
         setLoading(false);
       }
@@ -123,23 +174,18 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
 
     initSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Fix: Cast event to any to handle potentially missing type definition for 'TOKEN_REFRESH_FAILED' in TS union
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if ((event as any) === 'TOKEN_REFRESH_FAILED') {
         await clearAuthAndReload();
         return;
       }
 
-      if (session?.user) {
+      if (newSession?.user) {
         if (event === 'SIGNED_IN') {
-          const profileData = await fetchProfile(session.user.id);
-          if (profileData?.account_status === 'pending_approval') {
-            await supabase.auth.signOut();
-            return;
-          }
+          await scrubMetadataCloud(newSession.user);
         }
-        setUser(session.user);
-        setSession(session);
+        setUser(newSession.user);
+        setSession(newSession);
       } else {
         setUser(null);
         setSession(null);
@@ -156,19 +202,15 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
 
   useEffect(() => {
     if (!user || !isAdmin) return;
-
     const channel = supabase.channel('admin_coordination', {
       config: { presence: { key: user.id } },
     });
-
     channelRef.current = channel;
-
     channel
       .on('presence', { event: 'sync' }, () => {
         const newState = channel.presenceState();
         let locked = false;
         let lockerName = null;
-
         for (const key in newState) {
           const presenceState = newState[key];
           if (presenceState && presenceState.length > 0) {
@@ -180,30 +222,24 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
             }
           }
         }
-        
         setIsEditLocked(locked);
         setLockedBy(lockerName);
-
-        if (locked && adminMode) {
-           setAdminMode(false);
-        }
+        if (locked && adminMode) setAdminMode(false);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({ 
-            email: user.email, 
-            isEditing: adminMode 
-          });
+          await channel.track({ email: user.email, isEditing: adminMode });
         }
       });
-
-    return () => { channel.unsubscribe(); };
+    return () => { if (channel) channel.unsubscribe(); };
   }, [user, isAdmin, adminMode]);
 
   const signOut = async () => {
     if (channelRef.current) {
-        await channelRef.current.untrack();
-        supabase.removeChannel(channelRef.current);
+        try {
+          await channelRef.current.untrack();
+          supabase.removeChannel(channelRef.current);
+        } catch (e) {}
     }
     await supabase.auth.signOut();
   };
@@ -219,17 +255,8 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ 
-      user, 
-      session,
-      profile,
-      loading, 
-      isAdmin, 
-      adminMode, 
-      isEditLocked, 
-      lockedBy, 
-      toggleAdminMode, 
-      refreshProfile,
-      signOut 
+      user, session, profile, loading, isAdmin, adminMode, 
+      isEditLocked, lockedBy, toggleAdminMode, refreshProfile, signOut 
     }}>
       {children}
     </AuthContext.Provider>
@@ -238,8 +265,6 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };

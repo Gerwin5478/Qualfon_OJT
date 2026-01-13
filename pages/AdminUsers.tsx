@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, User, Mail, Phone, MapPin, Clock, Shield, MoreHorizontal, X, Loader2, Activity, CheckCircle, Smartphone, Trash2, Edit, AlertCircle, AlertTriangle, UserCheck } from 'lucide-react';
@@ -64,7 +63,6 @@ const AdminUsers: React.FC = () => {
 
     try {
       if (confirmAction.type === 'delete') {
-         // Note: delete_user_by_id must be defined in your Supabase Database as an RPC
          const { error } = await supabase.rpc('delete_user_by_id', { target_user_id: confirmAction.user.id });
          if (error) throw error;
          
@@ -205,11 +203,7 @@ const AdminUsers: React.FC = () => {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center text-slate-500 font-bold text-lg">
-                    {user.avatar_url ? (
-                      <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
-                    ) : (
-                      getInitials(user)
-                    )}
+                    {getInitials(user)}
                   </div>
                   <div className="flex flex-col items-end gap-1">
                       {user.account_status === 'pending_approval' ? (
@@ -280,11 +274,7 @@ const AdminUsers: React.FC = () => {
                  <div className="flex flex-col md:flex-row gap-6 items-end md:items-start">
                     <div className="w-24 h-24 rounded-full bg-white p-1 shadow-lg shrink-0">
                         <div className="w-full h-full rounded-full bg-slate-200 overflow-hidden flex items-center justify-center text-2xl font-bold text-slate-400">
-                            {selectedUser.avatar_url ? (
-                                <img src={selectedUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                            ) : (
-                                getInitials(selectedUser)
-                            )}
+                            {getInitials(selectedUser)}
                         </div>
                     </div>
                     

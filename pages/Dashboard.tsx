@@ -9,7 +9,7 @@ import {
   Trash2, Edit2, Save, ChevronLeft, AlertTriangle, GripVertical, 
   HelpCircle, Settings as SettingsIcon, Link as LinkIcon, 
   ExternalLink, ChevronDown, ChevronUp, Clock, History,
-  User as UserIcon, Filter, FileUp, RefreshCw, Type, Settings
+  User as UserIcon, Filter, FileUp, RefreshCw, Type, Settings, Trash
 } from 'lucide-react';
 import { getIcon, iconMap } from '../lib/iconMap';
 import { useAuth } from '../contexts/AuthContext';
@@ -62,7 +62,7 @@ interface RecentEdit {
   wiki_pages: {
     title: string;
     icon_name: string;
-  };
+  } | null;
 }
 
 const Dashboard: React.FC = () => {
@@ -154,7 +154,7 @@ const Dashboard: React.FC = () => {
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(8);
+        .limit(20); // Increased limit to show scrollbar when needed
       
       if (data) setRecentEdits(data as any);
     } catch (err) {
@@ -274,7 +274,7 @@ const Dashboard: React.FC = () => {
   const visibleRootPages = showAllTopics ? rootPages : rootPages.slice(0, 6);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
       {isTutorialOpen && <TutorialOverlay onClose={() => setIsTutorialOpen(false)} />}
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -373,22 +373,56 @@ const Dashboard: React.FC = () => {
 
         </main>
 
-        {/* SIDEBAR ACTIVITY */}
-        <aside className="lg:col-span-3 space-y-6 order-2">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-fit sticky top-24">
-            <div className="bg-slate-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm"><History size={18} className="text-blue-600" /> Recent Activity</h3>
+        {/* SIDEBAR ACTIVITY - Now occupies more space and is sticky */}
+        <aside className="lg:col-span-3 order-2 relative">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-24 max-h-[calc(100vh-120px)] flex flex-col">
+            <div className="bg-slate-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
+                <History size={18} className="text-blue-600" /> 
+                Recent Activity
+              </h3>
             </div>
-            <div className="p-2">
+            
+            {/* Scrollable container for activity history */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
               {recentEdits.length > 0 ? recentEdits.map((edit) => {
-                const PageIcon = getIcon(edit.wiki_pages?.icon_name);
-                return (
-                  <Link key={edit.id} to={`/policy/${edit.page_id}`} className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 group">
-                    <div className="bg-slate-100 text-slate-500 p-2 rounded-lg group-hover:bg-blue-50 group-hover:text-blue-600 shrink-0"><PageIcon size={16} /></div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-slate-900 truncate">{edit.wiki_pages?.title}</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{edit.action} by <span className="font-semibold">{edit.user_name}</span></p>
+                const PageIcon = getIcon(edit.wiki_pages?.icon_name || 'FileText');
+                const isDeleted = !edit.wiki_pages;
+                const actionColor = edit.action.toLowerCase().includes('delete') ? 'text-red-600' : 'text-slate-500';
+                
+                const getFallbackTitle = () => {
+                   const match = edit.action.match(/"([^"]+)"/);
+                   return match ? match[1] : 'Deleted Page';
+                };
+
+                const Content = (
+                  <div className={`flex items-start gap-3 p-3 rounded-xl transition-all ${isDeleted ? 'opacity-75 cursor-default grayscale-[0.5]' : 'hover:bg-slate-50 group cursor-pointer'}`}>
+                    <div className={`p-2 rounded-lg shrink-0 ${isDeleted ? 'bg-red-50 text-red-400' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'}`}>
+                      {isDeleted ? <Trash size={16} /> : <PageIcon size={16} />}
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {edit.wiki_pages?.title || getFallbackTitle()}
+                        </p>
+                        {isDeleted && (
+                          <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[8px] font-black uppercase rounded">Deleted</span>
+                        )}
+                      </div>
+                      <p className={`text-[10px] mt-0.5 font-medium ${actionColor}`}>{edit.action} by <span className="font-bold text-slate-700">{edit.user_name}</span></p>
+                      <div className="flex items-center gap-1 mt-1 text-[8px] text-slate-400">
+                        <Clock size={8} />
+                        {new Date(edit.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                );
+
+                return isDeleted ? (
+                  <div key={edit.id}>{Content}</div>
+                ) : (
+                  <Link key={edit.id} to={`/policy/${edit.page_id}`}>
+                    {Content}
                   </Link>
                 );
               }) : (
@@ -397,6 +431,12 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
+            
+            {recentEdits.length > 10 && (
+              <div className="p-2 border-t border-slate-50 bg-slate-50/50 text-center">
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Scroll for more</p>
+              </div>
+            )}
           </div>
         </aside>
       </div>
@@ -408,7 +448,7 @@ const Dashboard: React.FC = () => {
             <div className="bg-slate-50 px-8 py-6 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-blue-100 text-blue-600 rounded-2xl">
-                  <Settings size={24} />
+                  <SettingsIcon size={24} />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">Header Configuration</h3>
@@ -486,7 +526,6 @@ const Dashboard: React.FC = () => {
                             <option value="tutorial">Internal: Open Tutorial</option>
                             <option value="forms">Internal: Scroll to Forms</option>
                             <option value="https://qualfon-my.sharepoint.com/...">SharePoint Policy Link</option>
-                            {/* Allow custom manual input by making it a combo if needed, but select is cleaner for common actions */}
                           </select>
                         </div>
                       </div>
