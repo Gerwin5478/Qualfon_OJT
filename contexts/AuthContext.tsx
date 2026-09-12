@@ -207,11 +207,25 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
         if (event === 'SIGNED_IN') {
           await scrubMetadataCloud(newSession.user);
         }
+        // Load the profile first so we can gate access BEFORE granting a
+        // session. This runs on fresh logins too (not just reloads), which is
+        // what blocks unapproved non-@qualfon.com accounts from getting in.
+        const profileData = await fetchProfile(newSession.user.id);
+        if (
+          profileData &&
+          (profileData.account_status === 'pending_approval' ||
+            profileData.account_status === 'disabled')
+        ) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          setAdminMode(false);
+          setLoading(false);
+          return;
+        }
         setUser(newSession.user);
         setSession(newSession);
-        // Load the profile so role-based access (isAdmin) resolves for every
-        // account, not just the hardcoded fallback email.
-        await fetchProfile(newSession.user.id);
       } else {
         setUser(null);
         setSession(null);
