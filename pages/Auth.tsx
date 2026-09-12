@@ -32,6 +32,9 @@ const Auth: React.FC = () => {
           password,
         });
         if (error) throw error;
+        // Mark this as a genuine login so AuthContext signs out any other device
+        // that is currently using this same account (single-device enforcement).
+        sessionStorage.setItem('qf_fresh_login', '1');
         // AuthContext handles the 'pending_approval' check via onAuthStateChange
         navigate('/');
       } else {
