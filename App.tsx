@@ -1,6 +1,14 @@
 
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { HashRouter, BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+
+// Electron loads the app over the file:// protocol, where BrowserRouter's
+// history API paths don't resolve — so it needs HashRouter. On the web
+// (http/https) we use BrowserRouter, because HashRouter's "#/route" anchor
+// hrefs are misread as in-page scroll targets and break querySelector.
+const Router = typeof window !== 'undefined' && window.location.protocol === 'file:'
+  ? HashRouter
+  : BrowserRouter;
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';

@@ -86,7 +86,12 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
     } catch (e) {
       localStorage.clear();
     }
-    window.location.replace(window.location.origin + window.location.pathname + '#/auth');
+    const isElectron = window.location.protocol === 'file:';
+    window.location.replace(
+      isElectron
+        ? window.location.origin + window.location.pathname + '#/auth'
+        : window.location.origin + '/auth'
+    );
     window.location.reload();
   };
 
@@ -186,6 +191,9 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
         }
         setUser(newSession.user);
         setSession(newSession);
+        // Load the profile so role-based access (isAdmin) resolves for every
+        // account, not just the hardcoded fallback email.
+        await fetchProfile(newSession.user.id);
       } else {
         setUser(null);
         setSession(null);
