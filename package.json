@@ -1,44 +1,29 @@
-
 {
   "name": "cdo-facilities-wiki",
   "version": "1.0.0",
-  "description": "Desktop Wiki for CDO Facilities & Security",
-  "main": "main.js",
+  "description": "Wiki for CDO Facilities & Security",
+  "type": "module",
   "author": "Facilities Department",
   "scripts": {
-    "start": "electron .",
-    "build:win": "electron-builder --windows",
-    "build:mac": "electron-builder --macos",
-    "build:linux": "electron-builder --linux",
-    "build:all": "electron-builder --win --mac --linux"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron": "electron ."
   },
   "dependencies": {
-    "lucide-react": "^0.561.0"
+    "@google/genai": "^1.34.0",
+    "@supabase/supabase-js": "^2.88.0",
+    "lucide-react": "^0.561.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.11.0"
   },
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
-  },
-  "build": {
-    "appId": "com.qualfon.facilitieswiki",
-    "productName": "FacilitiesWiki",
-    "directories": {
-      "output": "dist"
-    },
-    "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
-    },
-    "mac": {
-      "target": "dmg",
-      "category": "public.app-category.productivity"
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "category": "Office"
-    }
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
   }
 }
