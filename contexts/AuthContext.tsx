@@ -39,6 +39,24 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
   const [isEditLocked, setIsEditLocked] = useState(false);
   const [lockedBy, setLockedBy] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const sessionChannelRef = useRef<RealtimeChannel | null>(null);
+  const sessionKickedRef = useRef(false);
+
+  /**
+   * Single-device enforcement: each browser gets a stable device id so we can
+   * tell devices apart on the shared per-user Realtime channel.
+   */
+  const getDeviceId = () => {
+    let id = localStorage.getItem('qf_device_id');
+    if (!id) {
+      id =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('qf_device_id', id);
+    }
+    return id;
+  };
 
   /**
    * CRITICAL FIX: NUCLEAR STORAGE CLEANER
@@ -242,7 +260,67 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
     return () => { if (channel) channel.unsubscribe(); };
   }, [user, isAdmin, adminMode]);
 
+  // Enforce a single active device per account. When an account signs in on a
+  // new device, that device broadcasts a "kick" on the shared per-user channel
+  // and any other device already signed in to the same account signs itself out.
+  useEffect(() => {
+    if (!user) return;
+    const deviceId = getDeviceId();
+    sessionKickedRef.current = false;
+
+    const channel = supabase.channel(`single-session-${user.id}`, {
+      config: { broadcast: { self: false }, presence: { key: deviceId } },
+    });
+    sessionChannelRef.current = channel;
+
+    const forceSignOut = async () => {
+      if (sessionKickedRef.current) return;
+      sessionKickedRef.current = true;
+      try {
+        alert('You have been signed out because this account was opened on another device.');
+      } catch (e) {}
+      await signOut();
+    };
+
+    channel
+      .on('broadcast', { event: 'kick' }, ({ payload }) => {
+        if (payload?.from && payload.from !== deviceId) {
+          void forceSignOut();
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ deviceId, online_at: new Date().toISOString() });
+          // Only a genuine fresh login (set on the Auth page) kicks other
+          // devices — a page reload must not sign out the active device.
+          if (sessionStorage.getItem('qf_fresh_login') === '1') {
+            sessionStorage.removeItem('qf_fresh_login');
+            await channel.send({
+              type: 'broadcast',
+              event: 'kick',
+              payload: { from: deviceId },
+            });
+          }
+        }
+      });
+
+    return () => {
+      try {
+        channel.untrack();
+        supabase.removeChannel(channel);
+      } catch (e) {}
+      sessionChannelRef.current = null;
+    };
+  }, [user?.id]);
+
   const signOut = async () => {
+    if (sessionChannelRef.current) {
+      try {
+        await sessionChannelRef.current.untrack();
+        supabase.removeChannel(sessionChannelRef.current);
+      } catch (e) {}
+      sessionChannelRef.current = null;
+    }
     if (channelRef.current) {
         try {
           await channelRef.current.untrack();
